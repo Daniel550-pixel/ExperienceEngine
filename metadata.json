@@ -1,0 +1,6 @@
+{
+  "name": "EXPERIENCE — Split-Screen Workspace",
+  "description": "A split-screen workspace bridging human intention and tangible creation, enabling curiosity-driven learning through experiments and live interactive simulations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

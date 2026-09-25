@@ -118,6 +118,60 @@ Ensure the output is valid JSON only. Keep the experiment progression realistic:
     }
   });
 
+
+  // API Route: Generate code continuously from the user's current idea.
+  app.post('/api/generate-code', async (req, res) => {
+    try {
+      const { idea } = req.body;
+      if (!idea || typeof idea !== 'string') {
+        return res.status(400).json({ error: 'Please provide an idea string' });
+      }
+
+      if (ai) {
+        const response = await ai.models.generateContent({
+          model: 'gemini-3.8-flash',
+          contents: idea,
+          config: {
+            systemInstruction: `You are the live code-generation engine inside ExperienceEngine.
+The user is typing an idea on the left side of a split-screen creation environment.
+Your job is to continuously turn the current idea into a useful implementation on the right side.
+
+Return ONLY source code. No markdown fences. No explanation.
+Preserve the user's intent. Prefer a small, runnable, self-contained implementation.
+Use TypeScript/JavaScript unless the idea clearly requires another language.
+When the idea is incomplete, write a sensible scaffold that can evolve as more text arrives.
+Do not invent unrelated features.
+The output should look like code that is actively being written by the system, not a tutorial.`,
+          },
+        });
+
+        return res.json({ code: response.text?.trim() || '// No code generated yet.' });
+      }
+
+      const safeIdea = idea.replace(/\\/g, '\\\\').replace(/\`/g, '\\\`');
+      return res.json({
+        code: `// ExperienceEngine — live generated scaffold
+// Current idea:
+// ${safeIdea}
+
+export class Creation {
+  readonly idea = ${JSON.stringify(idea)};
+
+  run() {
+    console.log("Building:", this.idea);
+  }
+}
+
+const creation = new Creation();
+creation.run();
+`,
+      });
+    } catch (err: any) {
+      console.error('Error generating live code:', err);
+      return res.status(500).json({ error: err.message || 'Failed to generate code' });
+    }
+  });
+
   // API Route: Generate next experiment
   app.post('/api/next-experiment', async (req, res) => {
     try {

@@ -54,7 +54,7 @@ async function startServer() {
 
   type PromptChunk = { index: number; start: number; end: number; text: string };
 
-  function chunkPrompt(prompt: string, chunkSize = 80_000): PromptChunk[] {
+  function chunkPrompt(prompt: string, chunkSize = 250_000): PromptChunk[] {
     const chunks: PromptChunk[] = [];
     let start = 0;
 
@@ -86,10 +86,8 @@ async function startServer() {
     if (prompt.length <= DIRECT_CONTEXT_CHARS || !ai) return prompt;
 
     const chunks = chunkPrompt(prompt);
-    const analysisLimit = 80;
-    const selectedChunks = chunks.length > analysisLimit
-      ? chunks.slice(0, analysisLimit)
-      : chunks;
+    const analysisLimit = 100;
+    const selectedChunks = chunks.length > analysisLimit ? chunks.slice(0, analysisLimit) : chunks;
 
     const analyses: string[] = [];
 
@@ -125,9 +123,9 @@ async function startServer() {
       'LARGE PROMPT CONTEXT MANIFEST',
       `Purpose: ${purpose}`,
       `Original characters: ${prompt.length.toLocaleString()}`,
-      `Original chunks: ${chunks.length}`,
+      \`Original chunks: \${chunks.length}\`,
       'The original prompt is retained intact by ExperienceEngine. The following requirements ledger is the model-context representation.',
-      omitted > 0 ? `Warning: ${omitted} later chunks exceeded the analysis safety cap; preserve the original prompt for future targeted retrieval.` : '',
+      omitted > 0 ? \`Warning: \${omitted} chunks exceeded the analysis safety cap.\` : '',
       '',
       ...analyses,
     ].filter(Boolean).join('\n\n');

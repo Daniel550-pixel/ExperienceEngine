@@ -66,10 +66,11 @@ export default function App() {
   }, [currentProjectId]);
 
   // Update the code being generated live from the user's current idea.
-  const handleLiveCodeChange = useCallback((code: string) => {
+  const handleLiveCodeChange = useCallback((code: string, language?: Project['codeLanguage']) => {
     updateCurrentProject((prev) => ({
       ...prev,
       codeSnippet: code,
+      ...(language ? { codeLanguage: language } : {}),
       updatedAt: Date.now(),
     }));
   }, [updateCurrentProject]);

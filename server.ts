@@ -39,7 +39,7 @@ async function startServer() {
   function normalizeLargePrompt(input: string): string {
     // Preserve the user's complete prompt. Only normalize line endings and a UTF-8 BOM.
     // No semantic truncation, summarization, or character slicing occurs here.
-    return input.replace(/^\\uFEFF/, '').replace(/\\r\\n/g, '\\n').replace(/\\r/g, '\\n');
+    return input.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   }
 
   function validatePrompt(input: unknown): string | null {

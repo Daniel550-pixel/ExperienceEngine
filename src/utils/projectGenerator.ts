@@ -3,9 +3,14 @@ import { MARS_ROVER_PROJECT, GRAVITY_PROJECT, CELLULAR_PROJECT } from '../data/p
 
 export async function generateProjectFromIdea(idea: string): Promise<Project> {
   const normalized = idea.toLowerCase().trim();
+  const isLargePrompt = idea.length > 2_000;
+
+  // Long prompts are specifications, not keyword-triggered presets.
+  // This prevents an incidental word such as "Mars" inside a large prompt from
+  // hijacking the intended project type.
 
   // 1. Check for canonical presets first for instant, high-fidelity experience
-  if (normalized.includes('mars') || normalized.includes('rover')) {
+  if (!isLargePrompt && (normalized.includes('mars') || normalized.includes('rover'))) {
     return {
       ...MARS_ROVER_PROJECT,
       id: `mars-rover-${Date.now()}`,
@@ -15,7 +20,7 @@ export async function generateProjectFromIdea(idea: string): Promise<Project> {
     };
   }
 
-  if (normalized.includes('gravity') || normalized.includes('orbit') || normalized.includes('solar system') || normalized.includes('celestial')) {
+  if (!isLargePrompt && (normalized.includes('gravity') || normalized.includes('orbit') || normalized.includes('solar system') || normalized.includes('celestial'))) {
     return {
       ...GRAVITY_PROJECT,
       id: `gravity-${Date.now()}`,
@@ -25,7 +30,7 @@ export async function generateProjectFromIdea(idea: string): Promise<Project> {
     };
   }
 
-  if (normalized.includes('cellular') || normalized.includes('conway') || normalized.includes('game of life') || normalized.includes('automata')) {
+  if (!isLargePrompt && (normalized.includes('cellular') || normalized.includes('conway') || normalized.includes('game of life') || normalized.includes('automata'))) {
     return {
       ...CELLULAR_PROJECT,
       id: `cellular-${Date.now()}`,
@@ -104,15 +109,16 @@ export async function generateProjectFromIdea(idea: string): Promise<Project> {
   const cleanedTitle = idea
     .replace(/^(i want to build|i want to make|i want to explore|i want to simulate|create a|build a|simulate a)/i, '')
     .trim();
-  const title = cleanedTitle ? cleanedTitle.charAt(0).toUpperCase() + cleanedTitle.slice(1) : 'Exploratory Experiment';
+  const titleSeed = cleanedTitle.replace(/\\s+/g, ' ').slice(0, 120).trim();
+  const title = titleSeed ? titleSeed.charAt(0).toUpperCase() + titleSeed.slice(1) : 'Exploratory Experiment';
 
   return {
     id: `custom-${Date.now()}`,
     title: title,
     intention: idea,
-    objective: `Design, construct, and evaluate a functioning prototype for ${title.toLowerCase()}.`,
+    objective: `Design, construct, and evaluate a functioning prototype from the complete supplied specification.`,
     category: 'custom',
-    summary: `Curiosity-driven experiment sandbox exploring the mechanical and computational principles of ${title.toLowerCase()}.`,
+    summary: `Curiosity-driven experiment sandbox generated from a full user specification.`,
     createdAt: Date.now(),
     updatedAt: Date.now(),
     activeExperimentIndex: 0,

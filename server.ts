@@ -14,7 +14,9 @@ const __dirname = path.dirname(__filename);
 async function startServer() {
   const app = express();
   const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-  app.use(express.json({ limit: '10mb' }));
+  // Large-prompt transport: the editor is intentionally not capped at a small chat-style payload.
+  // 25 MB is a transport safety ceiling, not a model-context ceiling; prompts are never truncated here.
+  app.use(express.json({ limit: '25mb', strict: true }));
 
   const apiKey = process.env.GEMINI_API_KEY;
   let ai: GoogleGenAI | null = null;
@@ -32,6 +34,23 @@ async function startServer() {
   // Rate-limit tracking and caching
   let geminiQuotaCooldownUntil = 0;
   const codeCache = new Map<string, string>();
+  const MAX_PROMPT_CHARS = 20_000_000;
+
+  function normalizeLargePrompt(input: string): string {
+    // Preserve the user's complete prompt. Only normalize line endings and a UTF-8 BOM.
+    // No semantic truncation, summarization, or character slicing occurs here.
+    return input.replace(/^\\uFEFF/, '').replace(/\\r\\n/g, '\\n').replace(/\\r/g, '\\n');
+  }
+
+  function validatePrompt(input: unknown): string | null {
+    if (typeof input !== 'string') return null;
+    const prompt = normalizeLargePrompt(input);
+    if (!prompt.trim()) return null;
+    if (prompt.length > MAX_PROMPT_CHARS) {
+      throw new Error(`Prompt exceeds the ExperienceEngine transport ceiling of ${MAX_PROMPT_CHARS.toLocaleString()} characters.`);
+    }
+    return prompt;
+  }
 
   function inferCodeLanguage(idea: string, code: string): { id: string; name: string; extension: string } {
     const lower = idea.toLowerCase();
@@ -359,8 +378,8 @@ console.log(system.inspect());
   // API Route: Generate project from user idea
   app.post('/api/generate-project', async (req, res) => {
     try {
-      const { idea } = req.body;
-      if (!idea || typeof idea !== 'string') {
+      const idea = validatePrompt(req.body?.idea);
+      if (!idea) {
         return res.status(400).json({ error: 'Please provide an idea string' });
       }
 
@@ -450,6 +469,9 @@ Ensure the output is valid JSON only. Keep the experiment progression realistic:
         return res.json({ fallback: true, message: 'Built-in project synthesizer active.' });
       }
     } catch (err: any) {
+      if (err?.message?.includes('transport ceiling')) {
+        return res.status(413).json({ error: err.message });
+      }
       console.warn('Error in /api/generate-project route, falling back to local synthesizer:', err?.message);
       return res.json({ fallback: true, message: 'Built-in project synthesizer active.' });
     }
@@ -459,8 +481,8 @@ Ensure the output is valid JSON only. Keep the experiment progression realistic:
   // API Route: Generate code continuously from the user's current idea.
   app.post('/api/generate-code', async (req, res) => {
     try {
-      const { idea } = req.body;
-      if (!idea || typeof idea !== 'string') {
+      const idea = validatePrompt(req.body?.idea);
+      if (!idea) {
         return res.status(400).json({ error: 'Please provide an idea string' });
       }
 
@@ -482,7 +504,19 @@ Ensure the output is valid JSON only. Keep the experiment progression realistic:
       try {
         const response = await ai.models.generateContent({
           model: 'gemini-3.8-flash',
-          contents: idea,
+          contents: [{
+            role: 'user',
+            parts: [{
+              text: [
+                'USER PROMPT START',
+                idea,
+                'USER PROMPT END',
+                '',
+                'Generate the implementation from the complete prompt above.',
+                'Do not discard later sections just because the prompt is long. Preserve explicit requirements, examples, constraints, tables, quoted material, and requested output behavior.',
+              ].join('\\n'),
+            }],
+          }],
           config: {
             systemInstruction: buildLanguageSystemPrompt() + `
 You are the live code-generation engine inside ExperienceEngine.
@@ -527,6 +561,9 @@ The output should look like code that is actively being written by the system, n
         return res.json({ code: fallbackCode, language, fallback: true });
       }
     } catch (err: any) {
+      if (err?.message?.includes('transport ceiling')) {
+        return res.status(413).json({ error: err.message });
+      }
       console.warn('Handling code generation fallback:', err?.message);
       const fallbackCode = generateIntelligentFallbackCode(typeof req.body?.idea === 'string' ? req.body.idea : '');
       const language = inferCodeLanguage(typeof req.body?.idea === 'string' ? req.body.idea : '', fallbackCode);

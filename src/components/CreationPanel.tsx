@@ -43,7 +43,7 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
   onAdvanceExperiment,
   onParameterChange,
 }) => {
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>('workspace');
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>('code');
   const [copiedCode, setCopiedCode] = useState(false);
 
   const handleCopyCode = () => {
@@ -61,11 +61,15 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-400" />
           <span className="text-[11px] font-mono tracking-widest text-emerald-400 font-bold uppercase">
-            RIGHT — CREATION
+            RIGHT — SYSTEM CREATION
           </span>
           <span className="text-slate-700 hidden sm:inline">|</span>
           <span className="text-xs text-slate-300 font-mono hidden sm:inline truncate max-w-[200px]">
             {project.title}
+          </span>
+          <span className="hidden lg:inline-flex items-center gap-1.5 text-[10px] font-mono text-emerald-400/80">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            WRITING LIVE
           </span>
         </div>
 
@@ -285,10 +289,10 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-display font-semibold text-slate-100 text-sm">
-                  Simulation Kinematics & Physics Logic
+                  System-generated code
                 </h3>
                 <p className="text-xs text-slate-400 font-mono">
-                  Executable TypeScript logic driving the interactive canvas.
+                  The system writes and revises this code from the idea on the left.
                 </p>
               </div>
               <button
@@ -300,9 +304,17 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
               </button>
             </div>
 
-            <div className="relative rounded-xl border border-slate-800 bg-slate-900/90 p-4 shadow-xl overflow-x-auto">
-              <pre className="font-mono text-xs text-cyan-200/90 leading-relaxed">
-                <code>{project.codeSnippet}</code>
+            <div className="relative h-[calc(100%-72px)] min-h-[420px] rounded-xl border border-emerald-500/20 bg-[#080d12] shadow-xl overflow-auto">
+              <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-2 border-b border-slate-800 bg-slate-950/90 backdrop-blur">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500">
+                  generated.ts
+                </span>
+                <span className="text-[10px] font-mono text-emerald-400">
+                  LIVE
+                </span>
+              </div>
+              <pre className="p-5 font-mono text-[12px] text-cyan-100/90 leading-6 whitespace-pre-wrap">
+                <code>{project.codeSnippet || '// Waiting for an idea...'}</code>
               </pre>
             </div>
 

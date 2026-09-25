@@ -33,6 +33,28 @@ async function startServer() {
   let geminiQuotaCooldownUntil = 0;
   const codeCache = new Map<string, string>();
 
+  function inferCodeLanguage(idea: string, code: string): { id: string; name: string; extension: string } {
+    const lower = idea.toLowerCase();
+    const explicit = CODE_LANGUAGE_LIBRARY.find((language) =>
+      [language.id, language.name, ...language.extensions, ...language.runtimes]
+        .some((term) => term && lower.includes(term.toLowerCase()))
+    );
+
+    if (explicit) {
+      return {
+        id: explicit.id,
+        name: explicit.name,
+        extension: explicit.extensions[0]?.replace(/^\./, '') || explicit.id,
+      };
+    }
+
+    if (/^\s*(interface|type|export|import|const|let|class)\b/m.test(code) || code.includes("Record<string")) {
+      return { id: "typescript", name: "TypeScript", extension: "ts" };
+    }
+
+    return { id: "typescript", name: "TypeScript", extension: "ts" };
+  }
+
   function generateIntelligentFallbackCode(idea: string): string {
     const lower = idea.toLowerCase();
     const cleanIdea = idea.replace(/"/g, "'").trim();
@@ -444,14 +466,17 @@ Ensure the output is valid JSON only. Keep the experiment progression realistic:
 
       const cacheKey = idea.trim().toLowerCase();
       if (codeCache.has(cacheKey)) {
-        return res.json({ code: codeCache.get(cacheKey)!, cached: true });
+        const cachedCode = codeCache.get(cacheKey)!;
+        const language = inferCodeLanguage(idea, cachedCode);
+        return res.json({ code: cachedCode, language, cached: true });
       }
 
       // Check if in Gemini API cooldown
       if (Date.now() < geminiQuotaCooldownUntil || !ai) {
         const fallbackCode = generateIntelligentFallbackCode(idea);
         codeCache.set(cacheKey, fallbackCode);
-        return res.json({ code: fallbackCode, fallback: true });
+        const language = inferCodeLanguage(idea, fallbackCode);
+        return res.json({ code: fallbackCode, language, fallback: true });
       }
 
       try {
@@ -485,7 +510,8 @@ The output should look like code that is actively being written by the system, n
         // Strip markdown fences if any slipped through
         const cleanCode = generatedCode.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/i, '');
         codeCache.set(cacheKey, cleanCode);
-        return res.json({ code: cleanCode });
+        const language = inferCodeLanguage(idea, cleanCode);
+        return res.json({ code: cleanCode, language });
       } catch (geminiErr: any) {
         // Handle 429 Quota or rate limit without 500 error or alarming logs
         if (geminiErr?.message?.includes('429') || geminiErr?.message?.includes('RESOURCE_EXHAUSTED')) {
@@ -497,12 +523,14 @@ The output should look like code that is actively being written by the system, n
 
         const fallbackCode = generateIntelligentFallbackCode(idea);
         codeCache.set(cacheKey, fallbackCode);
-        return res.json({ code: fallbackCode, fallback: true });
+        const language = inferCodeLanguage(idea, fallbackCode);
+        return res.json({ code: fallbackCode, language, fallback: true });
       }
     } catch (err: any) {
       console.warn('Handling code generation fallback:', err?.message);
       const fallbackCode = generateIntelligentFallbackCode(typeof req.body?.idea === 'string' ? req.body.idea : '');
-      return res.json({ code: fallbackCode, fallback: true });
+      const language = inferCodeLanguage(typeof req.body?.idea === 'string' ? req.body.idea : '', fallbackCode);
+      return res.json({ code: fallbackCode, language, fallback: true });
     }
   });
 

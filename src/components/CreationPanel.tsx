@@ -307,11 +307,16 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
             <div className="relative h-[calc(100%-72px)] min-h-[420px] rounded-xl border border-emerald-500/20 bg-[#080d12] shadow-xl overflow-auto">
               <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-2 border-b border-slate-800 bg-slate-950/90 backdrop-blur">
                 <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500">
-                  generated.ts
+                  generated.{project.codeLanguage?.extension || 'ts'}
                 </span>
-                <span className="text-[10px] font-mono text-emerald-400">
-                  LIVE
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-mono text-cyan-400">
+                    {project.codeLanguage?.name || 'TypeScript'}
+                  </span>
+                  <span className="text-[10px] font-mono text-emerald-400">
+                    LIVE
+                  </span>
+                </div>
               </div>
               <pre className="p-5 font-mono text-[12px] text-cyan-100/90 leading-6 whitespace-pre-wrap">
                 <code>{project.codeSnippet || '// Waiting for an idea...'}</code>

@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
+import { CODE_LANGUAGE_LIBRARY, CODE_LANGUAGE_LIBRARY_VERSION, buildLanguageSystemPrompt } from './src/data/codeLanguageLibrary';
 
 dotenv.config();
 
@@ -132,16 +133,25 @@ Ensure the output is valid JSON only. Keep the experiment progression realistic:
           model: 'gemini-3.8-flash',
           contents: idea,
           config: {
-            systemInstruction: `You are the live code-generation engine inside ExperienceEngine.
+            systemInstruction: buildLanguageSystemPrompt() + `
+You are the live code-generation engine inside ExperienceEngine.
 The user is typing an idea on the left side of a split-screen creation environment.
 Your job is to continuously turn the current idea into a useful implementation on the right side.
 
+The language library above is injected directly into your generation context.
+Treat it as the application's built-in code-language knowledge layer.
+Your own LLM programming knowledge remains available for syntax, APIs, algorithms, architecture, debugging and implementation details.
+
 Return ONLY source code. No markdown fences. No explanation.
-Preserve the user's intent. Prefer a small, runnable, self-contained implementation.
-Use TypeScript/JavaScript unless the idea clearly requires another language.
+Preserve the user's intent.
+Choose the appropriate language from the library instead of defaulting blindly to JavaScript.
+If the idea explicitly names a language, use that language.
+If the idea implies a platform, use its natural language/toolchain when practical.
 When the idea is incomplete, write a sensible scaffold that can evolve as more text arrives.
 Do not invent unrelated features.
-The output should look like code that is actively being written by the system, not a tutorial.`,
+Use idiomatic syntax, standard libraries and established package/tooling conventions for the selected language.
+The output should look like code that is actively being written by the system, not a tutorial.
+`,
           },
         });
 
@@ -170,6 +180,15 @@ creation.run();
       console.error('Error generating live code:', err);
       return res.status(500).json({ error: err.message || 'Failed to generate code' });
     }
+  });
+
+  // Expose the injected language library to the creation environment.
+  app.get('/api/languages', (_req, res) => {
+    res.json({
+      version: CODE_LANGUAGE_LIBRARY_VERSION,
+      count: CODE_LANGUAGE_LIBRARY.length,
+      languages: CODE_LANGUAGE_LIBRARY,
+    });
   });
 
   // API Route: Generate next experiment

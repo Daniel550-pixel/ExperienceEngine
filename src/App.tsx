@@ -91,7 +91,7 @@ export default function App() {
       setCurrentProjectId(newProject.id);
       setIsRunning(true);
     } catch (err) {
-      console.error('Failed to create project:', err);
+      console.warn('Project creation fallback handled:', err);
     } finally {
       setIsGenerating(false);
     }

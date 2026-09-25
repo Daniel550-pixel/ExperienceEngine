@@ -65,6 +65,15 @@ export default function App() {
     );
   }, [currentProjectId]);
 
+  // Update the code being generated live from the user's current idea.
+  const handleLiveCodeChange = useCallback((code: string) => {
+    updateCurrentProject((prev) => ({
+      ...prev,
+      codeSnippet: code,
+      updatedAt: Date.now(),
+    }));
+  }, [updateCurrentProject]);
+
   // Start creating / iterate project from idea
   const handleStartCreating = async (ideaText: string) => {
     setIsGenerating(true);
@@ -340,6 +349,7 @@ ${currentProject.codeSnippet}
             activeExperiment={activeExperiment}
             isGenerating={isGenerating}
             onStartCreating={handleStartCreating}
+            onLiveCodeChange={handleLiveCodeChange}
             onAdvanceToNextExperiment={handleAdvanceExperiment}
             onSelectExperiment={handleSelectExperiment}
             onUpdateObservation={handleUpdateObservation}

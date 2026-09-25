@@ -123,9 +123,9 @@ async function startServer() {
       'LARGE PROMPT CONTEXT MANIFEST',
       `Purpose: ${purpose}`,
       `Original characters: ${prompt.length.toLocaleString()}`,
-      \`Original chunks: \${chunks.length}\`,
+      `Original chunks: ${chunks.length}`,
       'The original prompt is retained intact by ExperienceEngine. The following requirements ledger is the model-context representation.',
-      omitted > 0 ? \`Warning: \${omitted} chunks exceeded the analysis safety cap.\` : '',
+      omitted > 0 ? `Warning: ${omitted} chunks exceeded the analysis safety cap.` : '',
       '',
       ...analyses,
     ].filter(Boolean).join('\n\n');

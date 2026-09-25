@@ -52,6 +52,85 @@ async function startServer() {
     return prompt;
   }
 
+  type PromptChunk = { index: number; start: number; end: number; text: string };
+
+  function chunkPrompt(prompt: string, chunkSize = 250_000): PromptChunk[] {
+    const chunks: PromptChunk[] = [];
+    let start = 0;
+
+    while (start < prompt.length) {
+      let end = Math.min(start + chunkSize, prompt.length);
+      if (end < prompt.length) {
+        const boundary = Math.max(
+          prompt.lastIndexOf('\n\n', end),
+          prompt.lastIndexOf('\n', end),
+          prompt.lastIndexOf(' ', end),
+        );
+        if (boundary > start + chunkSize * 0.65) end = boundary;
+      }
+
+      chunks.push({
+        index: chunks.length,
+        start,
+        end,
+        text: prompt.slice(start, end),
+      });
+      start = end;
+    }
+
+    return chunks;
+  }
+
+  async function buildModelContext(prompt: string, purpose: 'code' | 'project'): Promise<string> {
+    const DIRECT_CONTEXT_CHARS = 120_000;
+    if (prompt.length <= DIRECT_CONTEXT_CHARS || !ai) return prompt;
+
+    const chunks = chunkPrompt(prompt);
+    const analysisLimit = 100;
+    const selectedChunks = chunks.length > analysisLimit ? chunks.slice(0, analysisLimit) : chunks;
+
+    const analyses: string[] = [];
+
+    for (const chunk of selectedChunks) {
+      try {
+        const response = await ai.models.generateContent({
+          model: 'gemini-3.8-flash',
+          contents: [{
+            role: 'user',
+            parts: [{
+              text: [
+                `You are processing chunk ${chunk.index + 1} of ${chunks.length} from a larger user specification.`,
+                `This chunk covers characters ${chunk.start.toLocaleString()}-${chunk.end.toLocaleString()}.`,
+                'Extract requirements that must survive into the final implementation.',
+                'Preserve concrete names, numbers, interfaces, constraints, requested features, examples, dependencies, acceptance criteria, and explicit exclusions.',
+                'Do not invent requirements. Return a compact requirements ledger.',
+                '',
+                chunk.text,
+              ].join('\n'),
+            }],
+          }],
+        });
+
+        analyses.push(`CHUNK ${chunk.index + 1}/${chunks.length}\n${response.text?.trim() || '[No extracted requirements]'}`);
+      } catch (err: any) {
+        console.warn(`[Context Manager] Chunk ${chunk.index + 1} analysis failed:`, err?.message?.slice(0, 120));
+        analyses.push(`CHUNK ${chunk.index + 1}/${chunks.length}\n[Analysis unavailable; original prompt remains retained server-side.]`);
+      }
+    }
+
+    const omitted = chunks.length - selectedChunks.length;
+    return [
+      'LARGE PROMPT CONTEXT MANIFEST',
+      `Purpose: ${purpose}`,
+      `Original characters: ${prompt.length.toLocaleString()}`,
+      `Original chunks: ${chunks.length}`,
+      'The original prompt is retained intact by ExperienceEngine. The following requirements ledger is the model-context representation.',
+      omitted > 0 ? `Warning: ${omitted} chunks exceeded the analysis safety cap.` : '',
+      '',
+      ...analyses,
+    ].filter(Boolean).join('\n\n');
+  }
+
   function inferCodeLanguage(idea: string, code: string): { id: string; name: string; extension: string } {
     const lower = idea.toLowerCase();
     const explicit = CODE_LANGUAGE_LIBRARY.find((language) =>
@@ -449,7 +528,19 @@ Ensure the output is valid JSON only. Keep the experiment progression realistic:
 
         const response = await ai.models.generateContent({
           model: 'gemini-3.8-flash',
-          contents: `Idea: "${idea}"\nCreate the project structure.`,
+          contents: [{
+            role: 'user',
+            parts: [{
+              text: [
+                'USER PROMPT START',
+                await buildModelContext(idea, 'project'),
+                'USER PROMPT END',
+                '',
+                'Create the project structure from the complete supplied specification.',
+                'Preserve requirements, constraints, examples, tables, quoted dialogue, and multi-part instructions.',
+              ].join('\\n'),
+            }],
+          }],
           config: {
             systemInstruction: systemPrompt,
             responseMimeType: 'application/json',
@@ -509,7 +600,7 @@ Ensure the output is valid JSON only. Keep the experiment progression realistic:
             parts: [{
               text: [
                 'USER PROMPT START',
-                idea,
+                await buildModelContext(idea, 'code'),
                 'USER PROMPT END',
                 '',
                 'Generate the implementation from the complete prompt above.',

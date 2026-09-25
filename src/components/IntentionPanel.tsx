@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Project, Experiment } from '../types';
 import {
   Sparkles,
@@ -20,6 +20,7 @@ interface IntentionPanelProps {
   activeExperiment: Experiment;
   isGenerating: boolean;
   onStartCreating: (ideaText: string) => void;
+  onLiveCodeChange: (code: string) => void;
   onAdvanceToNextExperiment: () => void;
   onSelectExperiment: (index: number) => void;
   onUpdateObservation: (text: string) => void;
@@ -39,12 +40,14 @@ export const IntentionPanel: React.FC<IntentionPanelProps> = ({
   activeExperiment,
   isGenerating,
   onStartCreating,
+  onLiveCodeChange,
   onAdvanceToNextExperiment,
   onSelectExperiment,
   onUpdateObservation,
   onParameterChange,
 }) => {
-  const [ideaInput, setIdeaInput] = useState(project.intention || 'I want to build a Mars rover simulation.');
+  const [ideaInput, setIdeaInput] = useState(project.intention || '');
+  const requestIdRef = useRef(0);
   const [isEditingObservation, setIsEditingObservation] = useState(false);
   const [observationText, setObservationText] = useState(
     activeExperiment.actualResult || activeExperiment.expectedResult || ''
@@ -56,6 +59,47 @@ export const IntentionPanel: React.FC<IntentionPanelProps> = ({
       onStartCreating(ideaInput.trim());
     }
   };
+
+
+  // Generate code continuously after the user pauses typing.
+  // The input remains a normal textarea: spaces, punctuation and line breaks are preserved.
+  useEffect(() => {
+    const idea = ideaInput;
+    if (idea.trim().length < 8) {
+      onLiveCodeChange('// Start typing an idea...\n// The system will build the implementation here.');
+      return;
+    }
+
+    const requestId = ++requestIdRef.current;
+    const controller = new AbortController();
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await fetch('/api/generate-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idea }),
+          signal: controller.signal,
+        });
+
+        if (!response.ok) throw new Error('Code generation request failed');
+
+        const data = await response.json();
+        if (requestId === requestIdRef.current && typeof data.code === 'string') {
+          onLiveCodeChange(data.code);
+        }
+      } catch (error) {
+        if ((error as Error).name !== 'AbortError') {
+          console.error('Live code generation failed:', error);
+        }
+      }
+    }, 800);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [ideaInput, onLiveCodeChange]);
 
   const hasNextExperiment = project.activeExperimentIndex < project.experiments.length - 1;
 
@@ -76,7 +120,7 @@ export const IntentionPanel: React.FC<IntentionPanelProps> = ({
           What do you want to explore or build?
         </h2>
         <p className="text-[11px] text-slate-400 mt-0.5">
-          Curiosity or problem → idea → tangible experiment.
+          Type naturally. The system writes the code as your idea develops.
         </p>
       </div>
 
@@ -88,6 +132,8 @@ export const IntentionPanel: React.FC<IntentionPanelProps> = ({
               <textarea
                 value={ideaInput}
                 onChange={(e) => setIdeaInput(e.target.value)}
+                onKeyDown={(e) => e.stopPropagation()}
+                spellCheck={false}
                 placeholder="Type an idea... (e.g. I want to build a Mars rover simulation.)"
                 rows={3}
                 className="w-full bg-slate-900/90 border border-slate-800 focus:border-cyan-500 rounded-lg p-3 text-xs font-mono text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 resize-none transition-all leading-relaxed shadow-inner"

@@ -109,7 +109,7 @@ export async function generateProjectFromIdea(idea: string): Promise<Project> {
   const cleanedTitle = idea
     .replace(/^(i want to build|i want to make|i want to explore|i want to simulate|create a|build a|simulate a)/i, '')
     .trim();
-  const titleSeed = cleanedTitle.replace(/\\s+/g, ' ').slice(0, 120).trim();
+  const titleSeed = cleanedTitle.replace(/\s+/g, ' ').slice(0, 120).trim();
   const title = titleSeed ? titleSeed.charAt(0).toUpperCase() + titleSeed.slice(1) : 'Exploratory Experiment';
 
   return {

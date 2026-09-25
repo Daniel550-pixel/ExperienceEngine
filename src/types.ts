@@ -37,6 +37,11 @@ export interface Project {
   experiments: Experiment[];
   activeExperimentIndex: number;
   codeSnippet: string;
+  promptStats?: {
+    characterCount: number;
+    estimatedTokens: number;
+    lastGeneratedAt?: number;
+  };
   codeLanguage?: {
     id: string;
     name: string;

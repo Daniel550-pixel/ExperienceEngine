@@ -20,7 +20,7 @@ interface IntentionPanelProps {
   activeExperiment: Experiment;
   isGenerating: boolean;
   onStartCreating: (ideaText: string) => void;
-  onLiveCodeChange: (code: string) => void;
+  onLiveCodeChange: (code: string, language?: Project['codeLanguage']) => void;
   onAdvanceToNextExperiment: () => void;
   onSelectExperiment: (index: number) => void;
   onUpdateObservation: (text: string) => void;
@@ -48,6 +48,10 @@ export const IntentionPanel: React.FC<IntentionPanelProps> = ({
 }) => {
   const [ideaInput, setIdeaInput] = useState(project.intention || '');
   const requestIdRef = useRef(0);
+
+  useEffect(() => {
+    setIdeaInput(project.intention || '');
+  }, [project.id, project.intention]);
   const [isEditingObservation, setIsEditingObservation] = useState(false);
   const [observationText, setObservationText] = useState(
     activeExperiment.actualResult || activeExperiment.expectedResult || ''
@@ -89,7 +93,7 @@ export const IntentionPanel: React.FC<IntentionPanelProps> = ({
 
         const data = await response.json();
         if (requestId === requestIdRef.current && typeof data.code === 'string') {
-          onLiveCodeChange(data.code);
+          onLiveCodeChange(data.code, data.language);
         }
       } catch (error) {
         if ((error as Error).name !== 'AbortError') {

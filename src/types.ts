@@ -37,6 +37,11 @@ export interface Project {
   experiments: Experiment[];
   activeExperimentIndex: number;
   codeSnippet: string;
+  codeLanguage?: {
+    id: string;
+    name: string;
+    extension: string;
+  };
   markdownDoc: string;
   parameters: Record<string, ParameterConfig>;
   makerLevel: MakerLevel;

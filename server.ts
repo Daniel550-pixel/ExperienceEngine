@@ -528,7 +528,19 @@ Ensure the output is valid JSON only. Keep the experiment progression realistic:
 
         const response = await ai.models.generateContent({
           model: 'gemini-3.8-flash',
-          contents: `Idea: "${idea}"\nCreate the project structure.`,
+          contents: [{
+            role: 'user',
+            parts: [{
+              text: [
+                'USER PROMPT START',
+                await buildModelContext(idea, 'project'),
+                'USER PROMPT END',
+                '',
+                'Create the project structure from the complete supplied specification.',
+                'Preserve requirements, constraints, examples, tables, quoted dialogue, and multi-part instructions.',
+              ].join('\\n'),
+            }],
+          }],
           config: {
             systemInstruction: systemPrompt,
             responseMimeType: 'application/json',

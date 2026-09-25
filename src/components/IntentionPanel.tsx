@@ -48,6 +48,8 @@ export const IntentionPanel: React.FC<IntentionPanelProps> = ({
 }) => {
   const [ideaInput, setIdeaInput] = useState(project.intention || '');
   const requestIdRef = useRef(0);
+  const lastSentIdeaRef = useRef('');
+  const LARGE_PROMPT_THRESHOLD = 12_000;
 
   useEffect(() => {
     setIdeaInput(project.intention || '');
@@ -77,6 +79,13 @@ export const IntentionPanel: React.FC<IntentionPanelProps> = ({
     const requestId = ++requestIdRef.current;
     const controller = new AbortController();
 
+    const debounceMs = idea.length >= LARGE_PROMPT_THRESHOLD ? 1400 : 900;
+
+    // Avoid resending an unchanged large payload after project switches or React rerenders.
+    if (idea === lastSentIdeaRef.current) {
+      return;
+    }
+
     const timer = window.setTimeout(async () => {
       try {
         const response = await fetch('/api/generate-code', {
@@ -92,6 +101,11 @@ export const IntentionPanel: React.FC<IntentionPanelProps> = ({
         }
 
         const data = await response.json();
+        if (!response.ok) {
+          console.warn('Prompt transport rejected:', data.error || `HTTP ${response.status}`);
+          return;
+        }
+        lastSentIdeaRef.current = idea;
         if (requestId === requestIdRef.current && typeof data.code === 'string') {
           onLiveCodeChange(data.code, data.language);
         }
@@ -101,7 +115,7 @@ export const IntentionPanel: React.FC<IntentionPanelProps> = ({
           console.warn('Live code update deferred:', (error as Error).message);
         }
       }
-    }, 900);
+    }, debounceMs);
 
     return () => {
       controller.abort();
@@ -143,12 +157,16 @@ export const IntentionPanel: React.FC<IntentionPanelProps> = ({
                 onKeyDown={(e) => e.stopPropagation()}
                 spellCheck={false}
                 placeholder="Type an idea... (e.g. I want to build a Mars rover simulation.)"
-                rows={3}
-                className="w-full bg-slate-900/90 border border-slate-800 focus:border-cyan-500 rounded-lg p-3 text-xs font-mono text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 resize-none transition-all leading-relaxed shadow-inner"
+                rows={8}
+                className="w-full min-h-[180px] max-h-[520px] overflow-y-auto bg-slate-900/90 border border-slate-800 focus:border-cyan-500 rounded-lg p-3 text-xs font-mono text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 resize-y transition-all leading-relaxed shadow-inner"
               />
-              <span className="absolute bottom-2 right-2 text-[10px] font-mono text-slate-600">
-                {ideaInput.length} chars
-              </span>
+              <div className="absolute bottom-2 right-2 flex items-center gap-2 text-[10px] font-mono">
+                <span className={ideaInput.length >= LARGE_PROMPT_THRESHOLD ? 'text-cyan-400' : 'text-slate-600'}>
+                  ~{Math.max(1, Math.ceil(ideaInput.length / 4)).toLocaleString()} tokens
+                </span>
+                <span className="text-slate-600">|</span>
+                <span className="text-slate-600">{ideaInput.length.toLocaleString()} chars</span>
+              </div>
             </div>
 
             {/* Curiosity starters */}

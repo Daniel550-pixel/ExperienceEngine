@@ -80,6 +80,14 @@ export default function App() {
     }));
   }, [updateCurrentProject]);
 
+  const handleCodeChange = useCallback((code: string) => {
+    updateCurrentProject((prev) => ({
+      ...prev,
+      codeSnippet: code,
+      updatedAt: Date.now(),
+    }));
+  }, [updateCurrentProject]);
+
   // Start creating / iterate project from idea
   const handleStartCreating = async (ideaText: string) => {
     setIsGenerating(true);
@@ -360,6 +368,7 @@ ${currentProject.codeSnippet}
             onSelectExperiment={handleSelectExperiment}
             onUpdateObservation={handleUpdateObservation}
             onParameterChange={handleParameterChange}
+            onCodeChange={handleCodeChange}
           />
         </section>
 

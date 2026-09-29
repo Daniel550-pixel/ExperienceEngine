@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Project, Experiment } from '../types';
 import { MarsRoverSimulation } from '../simulations/MarsRoverSimulation';
 import { GenericSimulation } from '../simulations/GenericSimulation';
@@ -6,16 +6,16 @@ import {
   Play,
   Pause,
   RotateCcw,
-  Code,
+  Code2,
   Activity,
   CheckCircle2,
   Terminal,
-  ExternalLink,
-  Sliders,
-  Sparkles,
+  Copy,
+  Check,
   FileText,
-  Clock,
-  ArrowRight,
+  Sparkles,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 
 interface CreationPanelProps {
@@ -30,7 +30,7 @@ interface CreationPanelProps {
   onParameterChange: (key: string, value: number) => void;
 }
 
-type WorkspaceTab = 'workspace' | 'specs' | 'code' | 'telemetry';
+type WorkspaceTab = 'code' | 'workspace' | 'specs' | 'telemetry';
 
 export const CreationPanel: React.FC<CreationPanelProps> = ({
   project,
@@ -45,323 +45,180 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('code');
   const [copiedCode, setCopiedCode] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
-  const handleCopyCode = () => {
-    navigator.clipboard.writeText(project.codeSnippet);
-    setCopiedCode(true);
-    setTimeout(() => setCopiedCode(false), 2000);
+  const code = project.codeSnippet || '// Waiting for your idea...';
+  const lines = useMemo(() => code.split('\n'), [code]);
+
+  const handleCopyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedCode(true);
+      window.setTimeout(() => setCopiedCode(false), 1600);
+    } catch {
+      setCopiedCode(false);
+    }
   };
 
   const isMarsRover = project.category === 'mars-rover';
 
+  const tabClass = (tab: WorkspaceTab) =>
+    `px-2.5 py-1.5 rounded-md text-[10px] font-mono flex items-center gap-1.5 transition-colors ${
+      activeTab === tab
+        ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/25'
+        : 'text-slate-500 hover:text-slate-200 hover:bg-slate-900'
+    }`;
+
   return (
-    <div className="h-full flex flex-col bg-slate-950 overflow-hidden">
-      {/* Creation Header & View Switcher */}
-      <div className="h-13 min-h-[52px] px-4 border-b border-slate-800/80 bg-slate-900/40 flex items-center justify-between gap-2 select-none">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400" />
-          <span className="text-[11px] font-mono tracking-widest text-emerald-400 font-bold uppercase">
-            RIGHT — SYSTEM CREATION
+    <div className={`h-full flex flex-col bg-[#070b10] overflow-hidden ${expanded ? 'fixed inset-0 z-50' : ''}`}>
+      <header className="min-h-[52px] px-3 md:px-4 border-b border-slate-800/80 bg-slate-950 flex items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+          <span className="text-[10px] md:text-[11px] font-mono tracking-widest text-emerald-400 font-bold uppercase shrink-0">
+            RIGHT — CREATION
           </span>
-          <span className="text-slate-700 hidden sm:inline">|</span>
-          <span className="text-xs text-slate-300 font-mono hidden sm:inline truncate max-w-[200px]">
-            {project.title}
-          </span>
-          <span className="hidden lg:inline-flex items-center gap-1.5 text-[10px] font-mono text-emerald-400/80">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            WRITING LIVE
+          <span className="text-slate-700">/</span>
+          <span className="text-[10px] font-mono text-slate-400 truncate">
+            {project.codeLanguage?.name || 'TypeScript'} · generated.{project.codeLanguage?.extension || 'ts'}
           </span>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-0.5 text-xs font-mono">
-          <button
-            type="button"
-            onClick={() => setActiveTab('workspace')}
-            className={`px-3 py-1 rounded-md transition-colors flex items-center gap-1.5 ${
-              activeTab === 'workspace'
-                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-semibold shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Activity className="w-3.5 h-3.5" />
-            <span>Live Workspace</span>
+        <div className="flex items-center gap-1 shrink-0">
+          <button type="button" onClick={() => setActiveTab('code')} className={tabClass('code')}>
+            <Code2 className="w-3.5 h-3.5" /> Code
           </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('specs')}
-            className={`px-3 py-1 rounded-md transition-colors flex items-center gap-1.5 ${
-              activeTab === 'specs'
-                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-semibold shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Experiment Specs</span>
+          <button type="button" onClick={() => setActiveTab('workspace')} className={tabClass('workspace')}>
+            <Activity className="w-3.5 h-3.5" /> Run
           </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('code')}
-            className={`px-3 py-1 rounded-md transition-colors flex items-center gap-1.5 ${
-              activeTab === 'code'
-                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-semibold shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Code className="w-3.5 h-3.5" />
-            <span>Code</span>
+          <button type="button" onClick={() => setActiveTab('specs')} className={tabClass('specs')}>
+            <Sparkles className="w-3.5 h-3.5" /> Specs
           </button>
-
+          <button type="button" onClick={() => setActiveTab('telemetry')} className={tabClass('telemetry')}>
+            <Terminal className="w-3.5 h-3.5" /> Logs
+          </button>
           <button
             type="button"
-            onClick={() => setActiveTab('telemetry')}
-            className={`px-3 py-1 rounded-md transition-colors flex items-center gap-1.5 ${
-              activeTab === 'telemetry'
-                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-semibold shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
+            onClick={() => setExpanded(!expanded)}
+            className="ml-1 p-1.5 rounded-md text-slate-500 hover:text-slate-200 hover:bg-slate-900"
+            title={expanded ? 'Exit focus mode' : 'Focus code'}
           >
-            <Terminal className="w-3.5 h-3.5" />
-            <span>Logs</span>
+            {expanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* Main Creation Content Area */}
-      <div className="flex-1 relative overflow-hidden">
-        {/* 1. LIVE WORKSPACE TAB */}
-        {activeTab === 'workspace' && (
-          <div className="w-full h-full flex flex-col">
-            <div className="flex-1 relative">
-              {isMarsRover ? (
-                <MarsRoverSimulation
-                  project={project}
-                  activeExperiment={activeExperiment}
-                  isRunning={isRunning}
-                  onVerifyExperiment={onVerifyExperiment}
-                  onAddLog={onAddLog}
-                  onParameterChange={onParameterChange}
-                />
-              ) : (
-                <GenericSimulation
-                  project={project}
-                  activeExperiment={activeExperiment}
-                  isRunning={isRunning}
-                  onVerifyExperiment={onVerifyExperiment}
-                  onAddLog={onAddLog}
-                />
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* 2. EXPERIMENT SPECS TAB (Matching Prompt Canonical Test Spec) */}
-        {activeTab === 'specs' && (
-          <div className="h-full overflow-y-auto p-6 space-y-6 max-w-3xl mx-auto custom-scrollbar font-mono text-xs">
-            {/* Project Header Card */}
-            <div className="border border-slate-800 rounded-xl p-5 bg-slate-900/60 shadow-xl space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-cyan-400 font-bold uppercase tracking-wider">
-                  PROJECT SPECIFICATION
-                </span>
-                <span className="text-slate-500 text-[11px]">Category: {project.category}</span>
-              </div>
-              <h2 className="font-display font-bold text-slate-100 text-lg">
-                {project.title}
-              </h2>
-              <div className="space-y-1">
-                <div className="text-[10px] text-slate-400 uppercase tracking-wider">
-                  Objective
-                </div>
-                <p className="text-slate-200 text-sm leading-relaxed">
-                  {project.objective}
-                </p>
-              </div>
-              <div className="space-y-1 pt-1">
-                <div className="text-[10px] text-slate-400 uppercase tracking-wider">
-                  Summary
-                </div>
-                <p className="text-slate-400 text-xs leading-relaxed">
-                  {project.summary}
-                </p>
-              </div>
-            </div>
-
-            {/* Active Experiment Run Card */}
-            <div className="border border-cyan-500/30 rounded-xl p-5 bg-slate-900/80 shadow-2xl space-y-4">
-              <div className="flex items-center justify-between">
+      <div className="flex-1 min-h-0 overflow-hidden">
+        {activeTab === 'code' && (
+          <div className="h-full flex flex-col min-w-0">
+            <div className="px-3 md:px-4 py-2.5 border-b border-slate-800/70 bg-[#0a1017] flex items-center justify-between gap-3 shrink-0">
+              <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold text-xs">
-                    EXPERIMENT 0{activeExperiment.number}
-                  </span>
-                  <span className="text-slate-100 font-semibold text-sm">
-                    {activeExperiment.title}
-                  </span>
+                  <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider">Live implementation</span>
+                  <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-mono text-emerald-300">LIVE</span>
                 </div>
-                {activeExperiment.verified ? (
-                  <span className="inline-flex items-center gap-1 text-emerald-400 bg-emerald-950/60 border border-emerald-500/40 px-2 py-0.5 rounded text-xs font-semibold">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> VERIFIED
-                  </span>
-                ) : (
-                  <span className="text-amber-400 bg-amber-950/40 border border-amber-500/30 px-2 py-0.5 rounded text-xs">
-                    PENDING EXECUTION
-                  </span>
-                )}
-              </div>
-
-              <div className="space-y-1">
-                <div className="text-[10px] text-slate-400 uppercase tracking-wider">
-                  Specific Objective
-                </div>
-                <p className="text-slate-200 text-xs leading-relaxed">
-                  {activeExperiment.objective}
+                <p className="text-[10px] text-slate-500 font-mono mt-0.5 truncate">
+                  Code is regenerated from the current idea on the left.
                 </p>
               </div>
-
-              <div className="space-y-1">
-                <div className="text-[10px] text-slate-400 uppercase tracking-wider">
-                  Hypothesis
-                </div>
-                <p className="text-slate-300 text-xs leading-relaxed">
-                  {activeExperiment.hypothesis}
-                </p>
-              </div>
-
-              {/* [ BUILD / RUN ] Button */}
-              <div className="pt-2">
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[9px] font-mono text-slate-600">{code.length.toLocaleString()} chars</span>
                 <button
                   type="button"
-                  onClick={() => {
-                    setActiveTab('workspace');
-                    if (!isRunning) onTogglePlay();
-                    onAddLog(`[BUILD / RUN] Experiment 0${activeExperiment.number} executed in workspace.`);
-                  }}
-                  className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 active:from-emerald-700 active:to-cyan-700 text-white font-mono font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/50 transition-all cursor-pointer"
+                  onClick={handleCopyCode}
+                  className="px-2 py-1.5 rounded-md border border-slate-800 bg-slate-900 text-slate-300 hover:text-white hover:border-slate-700 text-[10px] font-mono flex items-center gap-1.5"
                 >
-                  <Play className="w-4 h-4 fill-white" />
-                  <span>[ BUILD / RUN ]</span>
+                  {copiedCode ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                  {copiedCode ? 'Copied' : 'Copy'}
                 </button>
               </div>
+            </div>
 
-              {/* RESULT SECTION */}
-              <div className="p-3.5 rounded-lg bg-slate-950 border border-slate-800 space-y-2">
-                <div className="text-[10px] text-slate-400 uppercase tracking-wider flex items-center justify-between">
-                  <span>RESULT</span>
-                  {activeExperiment.verified && (
-                    <span className="text-emerald-400 font-bold">100% PASS</span>
-                  )}
-                </div>
-                <p className="text-emerald-300 text-xs leading-relaxed">
-                  {activeExperiment.actualResult || activeExperiment.expectedResult}
-                </p>
-              </div>
-
-              {/* NEXT EXPERIMENT */}
-              <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-4">
-                <div>
-                  <div className="text-[10px] text-slate-400 uppercase tracking-wider">
-                    NEXT EXPERIMENT
+            <div className="flex-1 min-h-0 overflow-auto bg-[#05080c]">
+              <div className="min-w-max text-[12px] md:text-[13px] font-mono leading-6">
+                {lines.map((line, index) => (
+                  <div key={index} className="flex hover:bg-white/[0.025]">
+                    <span className="sticky left-0 w-12 shrink-0 select-none text-right pr-3 text-slate-700 bg-[#05080c] border-r border-slate-900">
+                      {index + 1}
+                    </span>
+                    <code className="pl-4 pr-8 whitespace-pre text-slate-200">{line || ' '}</code>
                   </div>
-                  <p className="text-slate-200 text-xs mt-0.5">
-                    {activeExperiment.nextExperimentHint}
-                  </p>
-                </div>
-                {project.activeExperimentIndex < project.experiments.length - 1 && (
-                  <button
-                    type="button"
-                    onClick={onAdvanceExperiment}
-                    className="py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-300 text-xs font-semibold whitespace-nowrap flex items-center gap-1.5 transition-colors"
-                  >
-                    <span>Advance</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                )}
+                ))}
               </div>
+            </div>
+
+            <div className="h-7 shrink-0 border-t border-slate-800/70 bg-slate-950 flex items-center justify-between px-3 text-[9px] font-mono text-slate-600">
+              <span>EXPERIENCE ENGINE · GENERATION STREAM</span>
+              <span>{project.promptStats?.estimatedTokens?.toLocaleString() || '—'} est. prompt tokens</span>
             </div>
           </div>
         )}
 
-        {/* 3. CODE & ARCHITECTURE TAB */}
-        {activeTab === 'code' && (
-          <div className="h-full overflow-y-auto p-6 space-y-4 max-w-4xl mx-auto custom-scrollbar">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-display font-semibold text-slate-100 text-sm">
-                  System-generated code
-                </h3>
-                <p className="text-xs text-slate-400 font-mono">
-                  The system writes and revises this code from the idea on the left.
-                </p>
+        {activeTab === 'workspace' && (
+          <div className="w-full h-full flex flex-col">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800/70 bg-slate-950 shrink-0">
+              <span className="text-[10px] font-mono text-slate-400">EXECUTION WORKSPACE</span>
+              <div className="flex items-center gap-1.5">
+                <button type="button" onClick={onReset} className="p-1.5 rounded bg-slate-900 text-slate-400 hover:text-slate-200"><RotateCcw className="w-3.5 h-3.5" /></button>
+                <button type="button" onClick={onTogglePlay} className="px-2 py-1.5 rounded bg-slate-900 border border-slate-800 text-slate-300 text-[10px] font-mono flex items-center gap-1">
+                  {isRunning ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                  {isRunning ? 'Pause' : 'Run'}
+                </button>
               </div>
+            </div>
+            <div className="flex-1 min-h-0">
+              {isMarsRover ? (
+                <MarsRoverSimulation project={project} activeExperiment={activeExperiment} isRunning={isRunning} onVerifyExperiment={onVerifyExperiment} onAddLog={onAddLog} onParameterChange={onParameterChange} />
+              ) : (
+                <GenericSimulation project={project} activeExperiment={activeExperiment} isRunning={isRunning} onVerifyExperiment={onVerifyExperiment} onAddLog={onAddLog} />
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'specs' && (
+          <div className="h-full overflow-y-auto p-4 md:p-6 space-y-4 custom-scrollbar font-mono text-xs">
+            <div className="border border-slate-800 rounded-xl p-4 bg-slate-900/60 space-y-3">
+              <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider">PROJECT SPECIFICATION</span>
+              <h2 className="font-display font-bold text-slate-100 text-lg">{project.title}</h2>
+              <p className="text-slate-300 leading-relaxed">{project.objective}</p>
+              <p className="text-slate-500 leading-relaxed">{project.summary}</p>
+            </div>
+            <div className="border border-cyan-500/20 rounded-xl p-4 bg-slate-900/60 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-cyan-300 font-bold">EXPERIMENT 0{activeExperiment.number}</span>
+                {activeExperiment.verified && <span className="text-emerald-400 flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> VERIFIED</span>}
+              </div>
+              <div><div className="text-[9px] text-slate-500 uppercase">Objective</div><p className="text-slate-200 mt-1">{activeExperiment.objective}</p></div>
+              <div><div className="text-[9px] text-slate-500 uppercase">Hypothesis</div><p className="text-slate-300 mt-1">{activeExperiment.hypothesis}</p></div>
               <button
                 type="button"
-                onClick={handleCopyCode}
-                className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-mono text-slate-300 transition-colors"
+                onClick={() => { setActiveTab('workspace'); if (!isRunning) onTogglePlay(); onAddLog(`[BUILD / RUN] Experiment 0${activeExperiment.number} executed.`); }}
+                className="w-full py-2.5 rounded-lg bg-gradient-to-r from-emerald-600 to-cyan-600 text-white font-mono font-bold text-xs flex items-center justify-center gap-2"
               >
-                {copiedCode ? 'Copied!' : 'Copy Code'}
+                <Play className="w-3.5 h-3.5 fill-white" /> BUILD / RUN
               </button>
-            </div>
-
-            <div className="relative h-[calc(100%-72px)] min-h-[420px] rounded-xl border border-emerald-500/20 bg-[#080d12] shadow-xl overflow-auto">
-              <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-2 border-b border-slate-800 bg-slate-950/90 backdrop-blur">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500">
-                  generated.{project.codeLanguage?.extension || 'ts'}
-                </span>
-                <div className="flex items-center gap-3">
-                  <span className="text-[10px] font-mono text-cyan-400">
-                    {project.codeLanguage?.name || 'TypeScript'}
-                  </span>
-                  <span className="text-[10px] font-mono text-emerald-400">
-                    LIVE
-                  </span>
-                </div>
-              </div>
-              <pre className="p-5 font-mono text-[12px] text-cyan-100/90 leading-6 whitespace-pre-wrap">
-                <code>{project.codeSnippet || '// Waiting for an idea...'}</code>
-              </pre>
-            </div>
-
-            {/* Markdown representation (project.txt) */}
-            <div className="pt-4 border-t border-slate-800">
-              <div className="flex items-center gap-2 mb-2">
-                <FileText className="w-4 h-4 text-cyan-400" />
-                <h4 className="font-display font-semibold text-slate-200 text-xs">
-                  Markdown Specification (project.txt)
-                </h4>
-              </div>
-              <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 font-mono text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
-                {project.markdownDoc}
+              <div className="rounded-lg bg-slate-950 border border-slate-800 p-3">
+                <div className="text-[9px] text-slate-500 uppercase">Result</div>
+                <p className="text-emerald-300 mt-1">{activeExperiment.actualResult || activeExperiment.expectedResult}</p>
               </div>
             </div>
           </div>
         )}
 
-        {/* 4. TELEMETRY & LOGS TAB */}
         {activeTab === 'telemetry' && (
-          <div className="h-full overflow-y-auto p-6 space-y-4 max-w-3xl mx-auto custom-scrollbar font-mono text-xs">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Terminal className="w-4 h-4 text-cyan-400" />
-                <span className="font-bold text-slate-200">EXPERIMENT LOG STREAM</span>
-              </div>
-              <span className="text-[11px] text-slate-500">Live Telemetry & Milestones</span>
+          <div className="h-full overflow-y-auto p-4 md:p-6 font-mono text-xs">
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-bold text-slate-200">EXPERIMENT LOG STREAM</span>
+              <span className="text-[10px] text-slate-600">LIVE TELEMETRY</span>
             </div>
-
-            <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-2 shadow-inner min-h-[300px]">
+            <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-2 min-h-[300px]">
               {activeExperiment.logs.length === 0 ? (
-                <div className="text-slate-500 italic py-8 text-center">
-                  No logs recorded yet. Drive the rover or run the simulation to produce telemetry.
+                <div className="text-slate-600 text-center py-10">No logs recorded yet.</div>
+              ) : activeExperiment.logs.map((log, idx) => (
+                <div key={idx} className="text-slate-300 leading-relaxed flex gap-2">
+                  <span className="text-cyan-500">&gt;</span><span>{log}</span>
                 </div>
-              ) : (
-                activeExperiment.logs.map((log, idx) => (
-                  <div key={idx} className="text-slate-300 leading-relaxed flex items-start gap-2">
-                    <span className="text-cyan-500 font-bold select-none">&gt;</span>
-                    <span>{log}</span>
-                  </div>
-                ))
-              )}
+              ))}
             </div>
           </div>
         )}

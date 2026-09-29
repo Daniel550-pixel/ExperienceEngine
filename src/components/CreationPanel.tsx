@@ -28,6 +28,7 @@ interface CreationPanelProps {
   onAddLog: (log: string) => void;
   onAdvanceExperiment: () => void;
   onParameterChange: (key: string, value: number) => void;
+  onCodeChange: (code: string) => void;
 }
 
 type WorkspaceTab = 'code' | 'workspace' | 'specs' | 'telemetry';
@@ -42,6 +43,7 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
   onAddLog,
   onAdvanceExperiment,
   onParameterChange,
+  onCodeChange,
 }) => {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('code');
   const [copiedCode, setCopiedCode] = useState(false);
@@ -49,6 +51,13 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
 
   const code = project.codeSnippet || '// Waiting for your idea...';
   const lines = useMemo(() => code.split('\n'), [code]);
+  const [codeDraft, setCodeDraft] = useState(code);
+  const [codeDirty, setCodeDirty] = useState(false);
+
+  React.useEffect(() => {
+    setCodeDraft(code);
+    setCodeDirty(false);
+  }, [code]);
 
   const handleCopyCode = async () => {
     try {
@@ -114,6 +123,7 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider">Live implementation</span>
+                  {codeDirty && <span className="px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-[9px] font-mono text-amber-300">UNSAVED</span>}
                   <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-mono text-emerald-300">LIVE</span>
                 </div>
                 <p className="text-[10px] text-slate-500 font-mono mt-0.5 truncate">
@@ -134,15 +144,25 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
             </div>
 
             <div className="flex-1 min-h-0 overflow-auto bg-[#05080c]">
-              <div className="min-w-max text-[12px] md:text-[13px] font-mono leading-6">
-                {lines.map((line, index) => (
-                  <div key={index} className="flex hover:bg-white/[0.025]">
-                    <span className="sticky left-0 w-12 shrink-0 select-none text-right pr-3 text-slate-700 bg-[#05080c] border-r border-slate-900">
-                      {index + 1}
-                    </span>
-                    <code className="pl-4 pr-8 whitespace-pre text-slate-200">{line || ' '}</code>
-                  </div>
-                ))}
+              <div className="flex min-h-full min-w-max font-mono text-[12px] md:text-[13px] leading-6">
+                <div className="w-12 shrink-0 select-none text-right pr-3 text-slate-700 bg-[#05080c] border-r border-slate-900">
+                  {codeDraft.split('\n').map((_, index) => <div key={index} className="h-6">{index + 1}</div>)}
+                </div>
+                <textarea
+                  value={codeDraft}
+                  onChange={(event) => {
+                    setCodeDraft(event.target.value);
+                    setCodeDirty(true);
+                  }}
+                  onBlur={() => {
+                    if (codeDraft !== code) onCodeChange(codeDraft);
+                    setCodeDirty(false);
+                  }}
+                  spellCheck={false}
+                  wrap="off"
+                  aria-label="Editable generated code"
+                  className="min-w-[calc(100vw-540px)] min-h-full resize-none outline-none border-0 bg-transparent text-slate-200 px-4 py-0 leading-6 whitespace-pre overflow-visible caret-emerald-400"
+                />
               </div>
             </div>
 

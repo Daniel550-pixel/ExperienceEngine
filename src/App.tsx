@@ -71,6 +71,11 @@ export default function App() {
       ...prev,
       codeSnippet: code,
       ...(language ? { codeLanguage: language } : {}),
+      promptStats: {
+        characterCount: prev.intention.length,
+        estimatedTokens: Math.max(1, Math.ceil(prev.intention.length / 4)),
+        lastGeneratedAt: Date.now(),
+      },
       updatedAt: Date.now(),
     }));
   }, [updateCurrentProject]);

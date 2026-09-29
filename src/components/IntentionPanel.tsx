@@ -50,6 +50,7 @@ export const IntentionPanel: React.FC<IntentionPanelProps> = ({
   const requestIdRef = useRef(0);
   const lastSentIdeaRef = useRef('');
   const LARGE_PROMPT_THRESHOLD = 12_000;
+  const generationTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     setIdeaInput(project.intention || '');
@@ -117,9 +118,14 @@ export const IntentionPanel: React.FC<IntentionPanelProps> = ({
       }
     }, debounceMs);
 
+    generationTimerRef.current = timer;
+
     return () => {
       controller.abort();
       window.clearTimeout(timer);
+      if (generationTimerRef.current === timer) {
+        generationTimerRef.current = null;
+      }
     };
   }, [ideaInput, onLiveCodeChange]);
 

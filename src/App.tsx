@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Project, Experiment, MakerLevel } from './types';
+import { Project, Experiment, MakerLevel, DesignSystem } from './types';
 import { MARS_ROVER_PROJECT } from './data/presetProjects';
 import {
   loadProjects,
@@ -76,6 +76,14 @@ export default function App() {
         estimatedTokens: Math.max(1, Math.ceil(prev.intention.length / 4)),
         lastGeneratedAt: Date.now(),
       },
+      updatedAt: Date.now(),
+    }));
+  }, [updateCurrentProject]);
+
+  const handleDesignChange = useCallback((designSystem: DesignSystem) => {
+    updateCurrentProject((prev) => ({
+      ...prev,
+      designSystem,
       updatedAt: Date.now(),
     }));
   }, [updateCurrentProject]);
@@ -387,6 +395,7 @@ ${currentProject.codeSnippet}
             onAdvanceExperiment={handleAdvanceExperiment}
             onParameterChange={handleParameterChange}
             onCodeChange={handleCodeChange}
+            onDesignChange={handleDesignChange}
           />
         </section>
       </main>

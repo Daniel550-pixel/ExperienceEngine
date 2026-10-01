@@ -1,5 +1,16 @@
 export type MakerLevel = 'Student' | 'Maker' | 'Developer' | 'Specialist' | 'Founder';
 
+export interface DesignSystem {
+  theme: 'midnight' | 'light';
+  accent: 'cyan' | 'violet' | 'emerald' | 'amber';
+  radius: 'sharp' | 'rounded' | 'pill';
+  density: 'compact' | 'comfortable' | 'spacious';
+  layout: 'dashboard' | 'split' | 'focused';
+  typography: 'modern' | 'technical' | 'editorial';
+  primaryComponent: 'hero' | 'workspace' | 'dashboard' | 'form';
+  updatedAt: number;
+}
+
 export interface ParameterConfig {
   label: string;
   value: number;
@@ -50,6 +61,7 @@ export interface Project {
   markdownDoc: string;
   parameters: Record<string, ParameterConfig>;
   makerLevel: MakerLevel;
+  designSystem?: DesignSystem;
 }
 
 export interface TelemetryReading {

@@ -55,15 +55,29 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
   const extension = project.codeLanguage?.extension || 'ts';
   const languageName = project.codeLanguage?.name || 'TypeScript';
   const files = useMemo<CodeFile[]>(() => [
-    { id: 'generated', name: `generated.${extension}`, language: languageName, content: code, generated: true },
-    { id: 'spec', name: 'SPEC.md', language: 'Markdown', content: `# ${project.title}\n\n${project.objective}\n\n## Intention\n${project.intention}\n\n## Summary\n${project.summary}`, generated: true },
+    {
+      id: 'generated',
+      name: `generated.${extension}`,
+      language: languageName,
+      content: code,
+      generated: true,
+    },
+    {
+      id: 'spec',
+      name: 'SPEC.md',
+      language: 'Markdown',
+      content: `# ${project.title}\n\n${project.objective}\n\n## Intention\n${project.intention}\n\n## Summary\n${project.summary}`,
+      generated: true,
+    },
   ], [code, extension, languageName, project.title, project.objective, project.intention, project.summary]);
+
   const activeFile = files.find((file) => file.id === activeFileId) || files[0];
-  const lines = useMemo(() => codeDraft.split('\n'), [codeDraft]);
   const [codeDraft, setCodeDraft] = useState(code);
   const [codeDirty, setCodeDirty] = useState(false);
   const codeDraftRef = useRef(code);
   const lastSavedCodeRef = useRef(code);
+  const activeContent = activeFile.id === 'generated' ? codeDraft : activeFile.content;
+  const lines = useMemo(() => activeContent.split('\n'), [activeContent]);
 
   useEffect(() => {
     // AI generation can update the project while the user is typing. Never
@@ -97,7 +111,7 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
 
   const handleCopyCode = async () => {
     try {
-      await navigator.clipboard.writeText(code);
+      await navigator.clipboard.writeText(activeContent);
       setCopiedCode(true);
       window.setTimeout(() => setCopiedCode(false), 1600);
     } catch {
@@ -164,6 +178,7 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
                     if (file.id === activeFileId) return;
                     saveCode();
                     setActiveFileId(file.id);
+                    setCopiedCode(false);
                   }}
                   className={`px-3 py-2 text-[10px] font-mono border-r border-slate-800 flex items-center gap-2 whitespace-nowrap ${
                     file.id === activeFileId ? 'bg-[#0a1017] text-slate-100 border-t border-t-emerald-400' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900'
@@ -174,23 +189,29 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
                   {file.id === 'generated' && <span className="text-[8px] text-emerald-400">AI</span>}
                 </button>
               ))}
-              <span className="ml-auto px-3 text-[9px] font-mono text-slate-600 whitespace-nowrap">2 FILES</span>
+              <span className="ml-auto px-3 text-[9px] font-mono text-slate-600 whitespace-nowrap">{files.length} FILES</span>
             </div>
 
             <div className="px-3 md:px-4 py-2.5 border-b border-slate-800/70 bg-[#0a1017] flex items-center justify-between gap-3 shrink-0">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider">Live implementation</span>
-                  {codeDirty && <span className="px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-[9px] font-mono text-amber-300">UNSAVED</span>}
-                  <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-mono text-emerald-300">LIVE</span>
+                  <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider">
+                    {activeFile.id === 'generated' ? 'Live implementation' : 'Project specification'}
+                  </span>
+                  {codeDirty && activeFile.id === 'generated' && <span className="px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-[9px] font-mono text-amber-300">UNSAVED</span>}
+                  <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-mono text-emerald-300">
+                    {activeFile.id === 'generated' ? 'LIVE' : 'READ ONLY'}
+                  </span>
                 </div>
                 <p className="text-[10px] text-slate-500 font-mono mt-0.5 truncate">
-                  AI generation updates this file without overwriting unsaved edits.
+                  {activeFile.id === 'generated'
+                    ? 'AI generation updates this file without overwriting unsaved edits.'
+                    : 'Generated project specification derived from the current intention.'}
                 </p>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                <span className="text-[9px] font-mono text-slate-600">{code.length.toLocaleString()} chars</span>
-                {codeDirty && (
+                <span className="text-[9px] font-mono text-slate-600">{activeContent.length.toLocaleString()} chars</span>
+                {codeDirty && activeFile.id === 'generated' && (
                   <button
                     type="button"
                     onClick={saveCode}
@@ -214,11 +235,11 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
             <div className="flex-1 min-h-0 overflow-auto bg-[#05080c]">
               <div className="flex min-h-full min-w-max font-mono text-[12px] md:text-[13px] leading-6">
                 <div className="w-12 shrink-0 select-none text-right pr-3 text-slate-700 bg-[#05080c] border-r border-slate-900">
-                  {codeDraft.split('\n').map((_, index) => <div key={index} className="h-6">{index + 1}</div>)}
+                  {lines.map((_, index) => <div key={index} className="h-6">{index + 1}</div>)}
                 </div>
                 <textarea
                   readOnly={activeFile.id !== 'generated'}
-                  value={activeFile.id === 'generated' ? codeDraft : activeFile.content}
+                  value={activeContent}
                   onChange={(event) => {
                     if (activeFile.id !== 'generated') return;
                     const nextCode = event.target.value;
@@ -229,8 +250,8 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
                   onBlur={saveCode}
                   spellCheck={false}
                   wrap="off"
-                  aria-label="Editable generated code"
-                  className="min-w-[calc(100vw-540px)] min-h-full resize-none outline-none border-0 bg-transparent text-slate-200 px-4 py-0 leading-6 whitespace-pre overflow-visible caret-emerald-400 disabled:text-slate-400"
+                  aria-label={activeFile.id === 'generated' ? 'Editable generated code' : 'Project specification'}
+                  className="min-w-[calc(100vw-540px)] min-h-full resize-none outline-none border-0 bg-transparent text-slate-200 px-4 py-0 leading-6 whitespace-pre overflow-visible caret-emerald-400 read-only:text-slate-400"
                 />
               </div>
             </div>

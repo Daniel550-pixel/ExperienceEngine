@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Project, Experiment } from '../types';
 import { MarsRoverSimulation } from '../simulations/MarsRoverSimulation';
 import { GenericSimulation } from '../simulations/GenericSimulation';
@@ -53,11 +53,38 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
   const lines = useMemo(() => code.split('\n'), [code]);
   const [codeDraft, setCodeDraft] = useState(code);
   const [codeDirty, setCodeDirty] = useState(false);
+  const codeDraftRef = useRef(code);
+  const lastSavedCodeRef = useRef(code);
 
-  React.useEffect(() => {
-    setCodeDraft(code);
+  useEffect(() => {
+    // AI generation can update the project while the user is typing. Never
+    // overwrite an unsaved manual edit with a background generation result.
+    if (!codeDirty) {
+      setCodeDraft(code);
+      codeDraftRef.current = code;
+      lastSavedCodeRef.current = code;
+    }
+  }, [code, codeDirty]);
+
+  const saveCode = () => {
+    const nextCode = codeDraftRef.current;
+    if (nextCode === lastSavedCodeRef.current) return;
+    onCodeChange(nextCode);
+    lastSavedCodeRef.current = nextCode;
     setCodeDirty(false);
-  }, [code]);
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault();
+        saveCode();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onCodeChange]);
 
   const handleCopyCode = async () => {
     try {
@@ -127,11 +154,21 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
                   <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-mono text-emerald-300">LIVE</span>
                 </div>
                 <p className="text-[10px] text-slate-500 font-mono mt-0.5 truncate">
-                  Code is regenerated from the current idea on the left.
+                  AI generation updates this file without overwriting unsaved edits.
                 </p>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 <span className="text-[9px] font-mono text-slate-600">{code.length.toLocaleString()} chars</span>
+                {codeDirty && (
+                  <button
+                    type="button"
+                    onClick={saveCode}
+                    className="px-2 py-1.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 text-[10px] font-mono flex items-center gap-1.5"
+                  >
+                    <Check className="w-3 h-3" />
+                    Save
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={handleCopyCode}
@@ -151,13 +188,12 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
                 <textarea
                   value={codeDraft}
                   onChange={(event) => {
-                    setCodeDraft(event.target.value);
-                    setCodeDirty(true);
+                    const nextCode = event.target.value;
+                    setCodeDraft(nextCode);
+                    codeDraftRef.current = nextCode;
+                    setCodeDirty(nextCode !== lastSavedCodeRef.current);
                   }}
-                  onBlur={() => {
-                    if (codeDraft !== code) onCodeChange(codeDraft);
-                    setCodeDirty(false);
-                  }}
+                  onBlur={saveCode}
                   spellCheck={false}
                   wrap="off"
                   aria-label="Editable generated code"
@@ -167,7 +203,7 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
             </div>
 
             <div className="h-7 shrink-0 border-t border-slate-800/70 bg-slate-950 flex items-center justify-between px-3 text-[9px] font-mono text-slate-600">
-              <span>EXPERIENCE ENGINE · GENERATION STREAM</span>
+              <span>{codeDirty ? 'LOCAL EDIT · PRESS CTRL+S TO SAVE' : 'EXPERIENCE ENGINE · GENERATION STREAM'}</span>
               <span>{project.promptStats?.estimatedTokens?.toLocaleString() || '—'} est. prompt tokens</span>
             </div>
           </div>

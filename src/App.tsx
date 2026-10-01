@@ -104,8 +104,8 @@ export default function App() {
       });
       setCurrentProjectId(newProject.id);
       setIsRunning(true);
-    } catch (err) {
-      console.warn('Project creation fallback handled:', err);
+    } catch {
+      // Fallback handled
     } finally {
       setIsGenerating(false);
     }
@@ -386,6 +386,7 @@ ${currentProject.codeSnippet}
             onAddLog={handleAddLog}
             onAdvanceExperiment={handleAdvanceExperiment}
             onParameterChange={handleParameterChange}
+            onCodeChange={handleCodeChange}
           />
         </section>
       </main>

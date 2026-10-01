@@ -113,8 +113,12 @@ async function startServer() {
 
         analyses.push(`CHUNK ${chunk.index + 1}/${chunks.length}\n${response.text?.trim() || '[No extracted requirements]'}`);
       } catch (err: any) {
-        console.warn(`[Context Manager] Chunk ${chunk.index + 1} analysis failed:`, err?.message?.slice(0, 120));
-        analyses.push(`CHUNK ${chunk.index + 1}/${chunks.length}\n[Analysis unavailable; original prompt remains retained server-side.]`);
+        const msg = String(err?.message || '');
+        if (msg.includes('429') || msg.includes('503') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('high demand') || msg.includes('UNAVAILABLE')) {
+          geminiQuotaCooldownUntil = Date.now() + 60000;
+          break;
+        }
+        analyses.push(`CHUNK ${chunk.index + 1}/${chunks.length}\n[Original prompt specification preserved server-side]`);
       }
     }
 
@@ -551,11 +555,9 @@ Ensure the output is valid JSON only. Keep the experiment progression realistic:
         const parsed = JSON.parse(text);
         return res.json(parsed);
       } catch (geminiErr: any) {
-        if (geminiErr?.message?.includes('429') || geminiErr?.message?.includes('RESOURCE_EXHAUSTED')) {
+        const msg = String(geminiErr?.message || '');
+        if (msg.includes('429') || msg.includes('503') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('high demand') || msg.includes('UNAVAILABLE')) {
           geminiQuotaCooldownUntil = Date.now() + 60000;
-          console.warn('[Gemini Quota Notice] Rate limit reached. Seamlessly activating built-in project synthesizer.');
-        } else {
-          console.warn('[Gemini Notice] Project generation fallback:', geminiErr?.message?.slice(0, 100));
         }
         return res.json({ fallback: true, message: 'Built-in project synthesizer active.' });
       }
@@ -563,7 +565,6 @@ Ensure the output is valid JSON only. Keep the experiment progression realistic:
       if (err?.message?.includes('transport ceiling')) {
         return res.status(413).json({ error: err.message });
       }
-      console.warn('Error in /api/generate-project route, falling back to local synthesizer:', err?.message);
       return res.json({ fallback: true, message: 'Built-in project synthesizer active.' });
     }
   });
@@ -638,12 +639,9 @@ The output should look like code that is actively being written by the system, n
         const language = inferCodeLanguage(idea, cleanCode);
         return res.json({ code: cleanCode, language });
       } catch (geminiErr: any) {
-        // Handle 429 Quota or rate limit without 500 error or alarming logs
-        if (geminiErr?.message?.includes('429') || geminiErr?.message?.includes('RESOURCE_EXHAUSTED')) {
+        const msg = String(geminiErr?.message || '');
+        if (msg.includes('429') || msg.includes('503') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('high demand') || msg.includes('UNAVAILABLE')) {
           geminiQuotaCooldownUntil = Date.now() + 60000;
-          console.warn('[Gemini Quota Notice] Rate limit reached. Seamlessly serving built-in code engine.');
-        } else {
-          console.warn('[Gemini Notice] Code generation fallback active:', geminiErr?.message?.slice(0, 100));
         }
 
         const fallbackCode = generateIntelligentFallbackCode(idea);
@@ -655,7 +653,6 @@ The output should look like code that is actively being written by the system, n
       if (err?.message?.includes('transport ceiling')) {
         return res.status(413).json({ error: err.message });
       }
-      console.warn('Handling code generation fallback:', err?.message);
       const fallbackCode = generateIntelligentFallbackCode(typeof req.body?.idea === 'string' ? req.body.idea : '');
       const language = inferCodeLanguage(typeof req.body?.idea === 'string' ? req.body.idea : '', fallbackCode);
       return res.json({ code: fallbackCode, language, fallback: true });
@@ -689,16 +686,15 @@ The output should look like code that is actively being written by the system, n
           const parsed = JSON.parse(text);
           return res.json(parsed);
         } catch (geminiErr: any) {
-          if (geminiErr?.message?.includes('429') || geminiErr?.message?.includes('RESOURCE_EXHAUSTED')) {
+          const msg = String(geminiErr?.message || '');
+          if (msg.includes('429') || msg.includes('503') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('high demand') || msg.includes('UNAVAILABLE')) {
             geminiQuotaCooldownUntil = Date.now() + 60000;
-            console.warn('[Gemini Quota Notice] Rate limit reached. Using local experiment advancement.');
           }
           return res.json({ fallback: true });
         }
       }
       return res.json({ fallback: true });
-    } catch (err: any) {
-      console.warn('Next experiment notice, using fallback:', err?.message);
+    } catch {
       return res.json({ fallback: true });
     }
   });

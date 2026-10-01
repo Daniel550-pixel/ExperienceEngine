@@ -101,8 +101,8 @@ export async function generateProjectFromIdea(idea: string): Promise<Project> {
         };
       }
     }
-  } catch (err) {
-    console.warn('API generation failed or offline, synthesizing local project:', err);
+  } catch {
+    // API generation offline or fallback, proceed to synthesize local project
   }
 
   // 3. Robust client-side fallback synthesis if offline

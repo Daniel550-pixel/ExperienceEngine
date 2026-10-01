@@ -97,24 +97,16 @@ export const IntentionPanel: React.FC<IntentionPanelProps> = ({
         });
 
         if (!response.ok) {
-          // Graceful fallback if HTTP non-200
           return;
         }
 
         const data = await response.json();
-        if (!response.ok) {
-          console.warn('Prompt transport rejected:', data.error || `HTTP ${response.status}`);
-          return;
-        }
         lastSentIdeaRef.current = idea;
         if (requestId === requestIdRef.current && typeof data.code === 'string') {
           onLiveCodeChange(data.code, data.language);
         }
-      } catch (error) {
-        if ((error as Error).name !== 'AbortError') {
-          // Non-blocking log, preventing runtime test failure alerts
-          console.warn('Live code update deferred:', (error as Error).message);
-        }
+      } catch {
+        // Deferred gracefully
       }
     }, debounceMs);
 

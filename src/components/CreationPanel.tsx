@@ -23,6 +23,8 @@ import {
   Monitor,
   Tablet,
   WandSparkles,
+  Save,
+  RefreshCw,
 } from 'lucide-react';
 
 interface CreationPanelProps {
@@ -36,6 +38,7 @@ interface CreationPanelProps {
   onAdvanceExperiment: () => void;
   onParameterChange: (key: string, value: number) => void;
   onCodeChange: (code: string) => void;
+  onDesignChange: (designSystem: Project['designSystem']) => void;
 }
 
 type WorkspaceTab = 'code' | 'design' | 'workspace' | 'specs' | 'telemetry';
@@ -52,6 +55,7 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
   onAdvanceExperiment,
   onParameterChange,
   onCodeChange,
+  onDesignChange,
 }) => {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('code');
   const [copiedCode, setCopiedCode] = useState(false);
@@ -59,6 +63,19 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
   const [activeFileId, setActiveFileId] = useState('generated');
   const [designViewport, setDesignViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [designMode, setDesignMode] = useState<'preview' | 'system'>('preview');
+  const defaultDesign = {
+    theme: 'midnight' as const,
+    accent: 'cyan' as const,
+    radius: 'rounded' as const,
+    density: 'comfortable' as const,
+    layout: 'dashboard' as const,
+    typography: 'modern' as const,
+    primaryComponent: 'workspace' as const,
+    updatedAt: Date.now(),
+  };
+  const [designSystem, setDesignSystem] = useState<NonNullable<Project['designSystem']>>(project.designSystem || defaultDesign);
+  const [isDesignGenerating, setIsDesignGenerating] = useState(false);
+  const [designStatus, setDesignStatus] = useState('LOCAL DESIGN STATE');
 
   const code = project.codeSnippet || '// Waiting for your idea...';
   const extension = project.codeLanguage?.extension || 'ts';
@@ -128,7 +145,81 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
     }
   };
 
-  const isMarsRover = project.category === 'mars-rover';
+  useEffect(() => {
+    setDesignSystem(project.designSystem || defaultDesign);
+  }, [project.id, project.designSystem]);
+
+  const updateDesign = <K extends keyof typeof designSystem>(key: K, value: typeof designSystem[K]) => {
+    const next = { ...designSystem, [key]: value, updatedAt: Date.now() };
+    setDesignSystem(next);
+    onDesignChange(next);
+    setDesignStatus('SAVED TO PROJECT');
+  };
+
+  const designPrompt = `Create the implementation for this product idea.
+
+PRODUCT INTENTION:
+${project.intention}
+
+PROJECT OBJECTIVE:
+${project.objective}
+
+DESIGN SPECIFICATION:
+- Theme: ${designSystem.theme}
+- Accent: ${designSystem.accent}
+- Corner style: ${designSystem.radius}
+- Density: ${designSystem.density}
+- Layout: ${designSystem.layout}
+- Typography: ${designSystem.typography}
+- Primary experience: ${designSystem.primaryComponent}
+
+Generate the actual application implementation, not a mockup. Reflect the design specification in the UI structure, component hierarchy, responsive behavior and styling. Preserve the product intent.`;
+
+  const generateFromDesign = async () => {
+    if (!project.intention.trim() || isDesignGenerating) return;
+    setIsDesignGenerating(true);
+    setDesignStatus('GENERATING IMPLEMENTATION');
+    try {
+      const response = await fetch('/api/generate-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idea: designPrompt }),
+      });
+      if (!response.ok) throw new Error('Generation request failed');
+      const data = await response.json();
+      if (typeof data.code === 'string') {
+        onCodeChange(data.code);
+        setDesignStatus(data.fallback ? 'IMPLEMENTATION GENERATED · FALLBACK' : 'IMPLEMENTATION GENERATED');
+        setActiveTab('code');
+      } else {
+        throw new Error('No implementation returned');
+      }
+    } catch {
+      setDesignStatus('GENERATION FAILED · TRY AGAIN');
+    } finally {
+      setIsDesignGenerating(false);
+    }
+  };
+
+  const accentClass = {
+    cyan: 'bg-cyan-500 text-slate-950 border-cyan-400',
+    violet: 'bg-violet-500 text-white border-violet-400',
+    emerald: 'bg-emerald-500 text-slate-950 border-emerald-400',
+    amber: 'bg-amber-400 text-slate-950 border-amber-300',
+  }[designSystem.accent];
+
+  const accentSoftClass = {
+    cyan: 'text-cyan-300 border-cyan-500/20 bg-cyan-500/5',
+    violet: 'text-violet-300 border-violet-500/20 bg-violet-500/5',
+    emerald: 'text-emerald-300 border-emerald-500/20 bg-emerald-500/5',
+    amber: 'text-amber-300 border-amber-500/20 bg-amber-500/5',
+  }[designSystem.accent];
+
+  const radiusClass = { sharp: 'rounded-md', rounded: 'rounded-xl', pill: 'rounded-3xl' }[designSystem.radius];
+  const densityPadding = { compact: 'p-3', comfortable: 'p-4', spacious: 'p-6' }[designSystem.density];
+  const previewBackground = designSystem.theme === 'light'
+    ? 'bg-slate-100 text-slate-900'
+    : 'bg-slate-950 text-white';
 
   const tabClass = (tab: WorkspaceTab) =>
     `px-2.5 py-1.5 rounded-md text-[10px] font-mono flex items-center gap-1.5 transition-colors ${
@@ -282,14 +373,14 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
                 <div className="flex items-center gap-2">
                   <Palette className="w-4 h-4 text-cyan-300" />
                   <span className="text-[11px] font-mono font-bold tracking-widest text-slate-100 uppercase">Professional UI / UX Studio</span>
-                  <span className="px-1.5 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20 text-[8px] font-mono text-cyan-300">AI DESIGN</span>
+                  <span className="px-1.5 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20 text-[8px] font-mono text-cyan-300">FUNCTIONAL</span>
                 </div>
-                <p className="text-[10px] text-slate-500 font-mono mt-1">Design, validate and refine the experience before implementation.</p>
+                <p className="text-[10px] text-slate-500 font-mono mt-1">Edit the design contract, persist it, then generate implementation from the exact state.</p>
               </div>
-              <div className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-950 p-1">
-                <button type="button" onClick={() => setDesignMode('preview')} className={designMode === 'preview' ? 'px-2 py-1 rounded bg-cyan-500/15 text-cyan-300 text-[9px] font-mono' : 'px-2 py-1 rounded text-slate-500 text-[9px] font-mono'}>Preview</button>
-                <button type="button" onClick={() => setDesignMode('system')} className={designMode === 'system' ? 'px-2 py-1 rounded bg-cyan-500/15 text-cyan-300 text-[9px] font-mono' : 'px-2 py-1 rounded text-slate-500 text-[9px] font-mono'}>Design System</button>
-              </div>
+              <button type="button" onClick={generateFromDesign} disabled={isDesignGenerating || !project.intention.trim()} className="px-3 py-2 rounded-lg bg-cyan-500 text-slate-950 text-[9px] font-mono font-bold flex items-center gap-1.5 disabled:opacity-40">
+                {isDesignGenerating ? <RefreshCw className="w-3 h-3 animate-spin" /> : <WandSparkles className="w-3 h-3" />}
+                {isDesignGenerating ? 'GENERATING' : 'GENERATE IMPLEMENTATION'}
+              </button>
             </div>
 
             <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800/70 bg-slate-950 shrink-0">
@@ -299,43 +390,101 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
                   return <button key={viewport} type="button" onClick={() => setDesignViewport(viewport)} className={designViewport === viewport ? 'px-2 py-1.5 rounded bg-slate-800 text-slate-100 flex items-center gap-1.5 text-[9px] font-mono' : 'px-2 py-1.5 rounded text-slate-500 hover:text-slate-200 flex items-center gap-1.5 text-[9px] font-mono'}><Icon className="w-3 h-3" />{viewport}</button>;
                 })}
               </div>
-              <span className="text-[9px] font-mono text-slate-600">RESPONSIVE DESIGN VALIDATION</span>
+              <span className="text-[9px] font-mono text-slate-600">{designStatus}</span>
             </div>
 
-            {designMode === 'preview' ? (
-              <div className="flex-1 min-h-0 overflow-auto p-4 md:p-6">
-                <div className={`mx-auto h-full min-h-[520px] rounded-2xl border border-slate-700/80 bg-slate-950 shadow-2xl overflow-hidden transition-all ${designViewport === 'desktop' ? 'w-full' : designViewport === 'tablet' ? 'w-[min(768px,100%)]' : 'w-[min(390px,100%)]'}`}>
-                  <div className="h-9 border-b border-slate-800 bg-[#0b1118] flex items-center px-3 gap-2">
-                    <span className="w-2 h-2 rounded-full bg-red-400/70" /><span className="w-2 h-2 rounded-full bg-amber-400/70" /><span className="w-2 h-2 rounded-full bg-emerald-400/70" />
-                    <div className="ml-3 flex-1 h-5 rounded bg-slate-900 border border-slate-800 text-[8px] text-slate-600 font-mono flex items-center px-2">experience-engine.local / {project.title.toLowerCase().replace(/\\s+/g, '-')}</div>
-                  </div>
-                  <div className="p-5 md:p-8 space-y-5 bg-gradient-to-br from-slate-950 via-[#09121a] to-slate-950 h-[calc(100%-36px)]">
-                    <div className="flex items-center justify-between gap-3">
-                      <div><div className="text-[9px] font-mono tracking-[0.2em] text-cyan-400 uppercase">Experience Engine</div><h2 className="text-xl md:text-2xl font-bold text-white mt-1">{project.title}</h2></div>
-                      <button type="button" className="px-3 py-2 rounded-lg bg-cyan-500 text-slate-950 text-[9px] font-mono font-bold flex items-center gap-1.5"><WandSparkles className="w-3 h-3" /> CREATE</button>
+            <div className="flex-1 min-h-0 overflow-auto p-4 md:p-5">
+              <div className="grid grid-cols-1 xl:grid-cols-[280px_minmax(0,1fr)] gap-4 h-full min-h-[620px]">
+                <aside className="rounded-xl border border-slate-800 bg-slate-950 p-3 space-y-4 overflow-y-auto">
+                  <div className="text-[9px] font-mono text-slate-500 uppercase tracking-wider">Design contract</div>
+
+                  {[
+                    ['Theme', 'theme', ['midnight','light']],
+                    ['Accent', 'accent', ['cyan','violet','emerald','amber']],
+                    ['Corners', 'radius', ['sharp','rounded','pill']],
+                    ['Density', 'density', ['compact','comfortable','spacious']],
+                    ['Layout', 'layout', ['dashboard','split','focused']],
+                    ['Typography', 'typography', ['modern','technical','editorial']],
+                    ['Primary experience', 'primaryComponent', ['hero','workspace','dashboard','form']],
+                  ].map(([label, key, values]) => (
+                    <div key={String(key)} className="space-y-1.5">
+                      <label className="text-[9px] font-mono text-slate-500 uppercase">{label}</label>
+                      <select
+                        value={String(designSystem[key as keyof typeof designSystem])}
+                        onChange={(event) => updateDesign(key as keyof typeof designSystem, event.target.value as never)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-md px-2 py-2 text-[10px] font-mono text-slate-200 outline-none focus:border-cyan-500"
+                      >
+                        {(values as string[]).map((value) => <option key={value} value={value}>{value}</option>)}
+                      </select>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div className="md:col-span-2 rounded-xl border border-slate-800 bg-slate-900/70 p-4 min-h-[170px]"><div className="text-[8px] font-mono text-slate-500 uppercase">Primary experience</div><div className="mt-3 h-4 w-2/3 rounded bg-slate-800" /><div className="mt-2 h-3 w-full rounded bg-slate-900" /><div className="mt-2 h-3 w-5/6 rounded bg-slate-900" /><div className="mt-6 flex gap-2"><div className="h-8 w-24 rounded-lg bg-cyan-500/80" /><div className="h-8 w-20 rounded-lg border border-slate-700" /></div></div>
-                      <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4"><div className="text-[8px] font-mono text-cyan-300 uppercase">UX signal</div><div className="text-2xl font-bold text-white mt-3">{designViewport === 'desktop' ? '98' : designViewport === 'tablet' ? '94' : '91'}%</div><div className="text-[9px] font-mono text-slate-500 mt-1">layout consistency</div><div className="mt-5 h-1.5 rounded-full bg-slate-800 overflow-hidden"><div className="h-full w-[94%] bg-cyan-400 rounded-full" /></div></div>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">{['Hierarchy','Navigation','Accessibility','Responsive'].map((item) => <div key={item} className="rounded-lg border border-slate-800 bg-slate-900/50 p-3"><div className="text-[8px] font-mono text-slate-500 uppercase">{item}</div><div className="mt-2 text-[10px] text-emerald-300 font-mono">READY</div></div>)}</div>
+                  ))}
+
+                  <div className="pt-2 border-t border-slate-800 text-[9px] font-mono text-slate-600 leading-relaxed">
+                    Changes persist with the project. The implementation generator receives this complete design contract.
                   </div>
-                </div>
+                </aside>
+
+                <section className="min-w-0 flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-[9px] font-mono tracking-[0.2em] text-cyan-400 uppercase">Live design preview</div>
+                      <div className="text-[10px] text-slate-500 font-mono mt-1">Viewport: {designViewport} · {designSystem.layout} · {designSystem.density}</div>
+                    </div>
+                    <div className="text-[9px] font-mono text-emerald-300 flex items-center gap-1"><Save className="w-3 h-3" /> PERSISTED</div>
+                  </div>
+
+                  <div className={`mx-auto flex-1 w-full ${designViewport === 'desktop' ? 'max-w-none' : designViewport === 'tablet' ? 'max-w-[768px]' : 'max-w-[390px]'} ${radiusClass} border border-slate-700/80 overflow-hidden shadow-2xl transition-all ${previewBackground}`}>
+                    <div className="h-9 border-b border-slate-800 bg-slate-900 flex items-center px-3 gap-2">
+                      <span className="w-2 h-2 rounded-full bg-red-400/70" /><span className="w-2 h-2 rounded-full bg-amber-400/70" /><span className="w-2 h-2 rounded-full bg-emerald-400/70" />
+                      <div className="ml-3 flex-1 h-5 rounded bg-slate-950 border border-slate-800 text-[8px] text-slate-600 font-mono flex items-center px-2">experience-engine.local</div>
+                    </div>
+
+                    <div className={`min-h-[500px] ${densityPadding} space-y-5 ${designSystem.layout === 'focused' ? 'max-w-3xl mx-auto' : ''}`}>
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="text-[9px] font-mono tracking-[0.2em] text-cyan-500 uppercase">Experience Engine</div>
+                          <h2 className="text-xl md:text-2xl font-bold mt-1">{project.title}</h2>
+                        </div>
+                        <button type="button" className={`px-3 py-2 ${radiusClass} border text-[9px] font-mono font-bold flex items-center gap-1.5 ${accentClass}`}>
+                          <WandSparkles className="w-3 h-3" /> CREATE
+                        </button>
+                      </div>
+
+                      <div className={designSystem.layout === 'split' ? 'grid grid-cols-1 md:grid-cols-2 gap-3' : 'space-y-3'}>
+                        <div className={`${radiusClass} border border-slate-700 bg-slate-900/60 ${densityPadding} min-h-[190px]`}>
+                          <div className="text-[8px] font-mono text-slate-500 uppercase">{designSystem.primaryComponent}</div>
+                          <h3 className="text-lg font-semibold mt-3">{project.objective || 'Define the primary experience.'}</h3>
+                          <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">{project.summary || 'The design workspace will evolve this surface from your intention.'}</p>
+                          <div className="mt-6 flex gap-2">
+                            <div className={`h-8 w-24 ${radiusClass} ${accentClass}`} />
+                            <div className={`h-8 w-20 ${radiusClass} border border-slate-700`} />
+                          </div>
+                        </div>
+                        <div className={`${radiusClass} border ${accentSoftClass} ${densityPadding}`}>
+                          <div className="text-[8px] font-mono uppercase">UX signal</div>
+                          <div className="text-2xl font-bold mt-3">LIVE</div>
+                          <div className="text-[9px] font-mono text-slate-500 mt-1">contract-driven preview</div>
+                          <div className="mt-5 grid grid-cols-2 gap-2 text-[9px] font-mono">
+                            <div className="border border-slate-800 rounded p-2">Responsive<br/><span className="text-emerald-300">READY</span></div>
+                            <div className="border border-slate-800 rounded p-2">Hierarchy<br/><span className="text-emerald-300">READY</span></div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        {['Navigation','Primary action','Feedback','Responsive'].map((item) => (
+                          <div key={item} className={`${radiusClass} border border-slate-800 bg-slate-900/50 px-3 py-3 text-[9px] font-mono text-slate-400`}>
+                            {item}<div className="text-emerald-300 mt-1">READY</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </section>
               </div>
-            ) : (
-              <div className="flex-1 min-h-0 overflow-auto p-4 md:p-6 space-y-4">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {[['Layout','12-column responsive grid'],['Typography','Display / body / mono'],['Spacing','4px base rhythm'],['Interaction','Hover / focus / active']].map(([label,value]) => <div key={label} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4"><div className="text-[8px] font-mono text-cyan-400 uppercase">{label}</div><div className="text-[11px] text-slate-200 mt-2">{value}</div></div>)}
-                </div>
-                <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-                  <div className="flex items-center gap-2 text-[10px] font-mono text-slate-300 font-bold uppercase"><LayoutTemplate className="w-3.5 h-3.5 text-cyan-300" /> Component architecture</div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4">{['Navigation','Hero / Workspace','Action Bar','Data Card','Form Controls','Status / Feedback','Modal / Overlay','Empty State'].map((item) => <div key={item} className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-3 text-[9px] font-mono text-slate-400 flex items-center gap-2"><MousePointer2 className="w-3 h-3 text-slate-600" />{item}</div>)}</div>
-                </div>
-              </div>
-            )}
+            </div>
           </div>
         )}
-
         {activeTab === 'workspace' && (
           <div className="w-full h-full flex flex-col">
             <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800/70 bg-slate-950 shrink-0">

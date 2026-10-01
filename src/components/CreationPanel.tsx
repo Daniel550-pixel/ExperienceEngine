@@ -38,7 +38,7 @@ interface CreationPanelProps {
   onAdvanceExperiment: () => void;
   onParameterChange: (key: string, value: number) => void;
   onCodeChange: (code: string) => void;
-  onDesignChange: (designSystem: Project['designSystem']) => void;
+  onDesignChange: (designSystem: NonNullable<Project['designSystem']>) => void;
 }
 
 type WorkspaceTab = 'code' | 'design' | 'workspace' | 'specs' | 'telemetry';

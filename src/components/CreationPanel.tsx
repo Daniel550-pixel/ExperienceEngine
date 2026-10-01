@@ -16,6 +16,13 @@ import {
   Sparkles,
   Maximize2,
   Minimize2,
+  Palette,
+  LayoutTemplate,
+  MousePointer2,
+  Smartphone,
+  Monitor,
+  Tablet,
+  WandSparkles,
 } from 'lucide-react';
 
 interface CreationPanelProps {
@@ -31,7 +38,7 @@ interface CreationPanelProps {
   onCodeChange: (code: string) => void;
 }
 
-type WorkspaceTab = 'code' | 'workspace' | 'specs' | 'telemetry';
+type WorkspaceTab = 'code' | 'design' | 'workspace' | 'specs' | 'telemetry';
 type CodeFile = { id: string; name: string; language: string; content: string; generated: boolean };
 
 export const CreationPanel: React.FC<CreationPanelProps> = ({
@@ -50,6 +57,8 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
   const [copiedCode, setCopiedCode] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [activeFileId, setActiveFileId] = useState('generated');
+  const [designViewport, setDesignViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
+  const [designMode, setDesignMode] = useState<'preview' | 'system'>('preview');
 
   const code = project.codeSnippet || '// Waiting for your idea...';
   const extension = project.codeLanguage?.extension || 'ts';
@@ -145,6 +154,9 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
         <div className="flex items-center gap-1 shrink-0">
           <button type="button" onClick={() => setActiveTab('code')} className={tabClass('code')}>
             <Code2 className="w-3.5 h-3.5" /> Code
+          </button>
+          <button type="button" onClick={() => setActiveTab('design')} className={tabClass('design')}>
+            <Palette className="w-3.5 h-3.5" /> Design
           </button>
           <button type="button" onClick={() => setActiveTab('workspace')} className={tabClass('workspace')}>
             <Activity className="w-3.5 h-3.5" /> Run
@@ -260,6 +272,67 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
               <span>{codeDirty ? 'LOCAL EDIT · PRESS CTRL+S TO SAVE' : 'EXPERIENCE ENGINE · GENERATION STREAM'}</span>
               <span>{project.promptStats?.estimatedTokens?.toLocaleString() || '—'} est. prompt tokens</span>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'design' && (
+          <div className="h-full flex flex-col bg-[#05080c] overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-800/70 bg-[#0a1017] flex items-center justify-between gap-3 shrink-0">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Palette className="w-4 h-4 text-cyan-300" />
+                  <span className="text-[11px] font-mono font-bold tracking-widest text-slate-100 uppercase">Professional UI / UX Studio</span>
+                  <span className="px-1.5 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20 text-[8px] font-mono text-cyan-300">AI DESIGN</span>
+                </div>
+                <p className="text-[10px] text-slate-500 font-mono mt-1">Design, validate and refine the experience before implementation.</p>
+              </div>
+              <div className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-950 p-1">
+                <button type="button" onClick={() => setDesignMode('preview')} className={designMode === 'preview' ? 'px-2 py-1 rounded bg-cyan-500/15 text-cyan-300 text-[9px] font-mono' : 'px-2 py-1 rounded text-slate-500 text-[9px] font-mono'}>Preview</button>
+                <button type="button" onClick={() => setDesignMode('system')} className={designMode === 'system' ? 'px-2 py-1 rounded bg-cyan-500/15 text-cyan-300 text-[9px] font-mono' : 'px-2 py-1 rounded text-slate-500 text-[9px] font-mono'}>Design System</button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800/70 bg-slate-950 shrink-0">
+              <div className="flex items-center gap-1">
+                {(['desktop', 'tablet', 'mobile'] as const).map((viewport) => {
+                  const Icon = viewport === 'desktop' ? Monitor : viewport === 'tablet' ? Tablet : Smartphone;
+                  return <button key={viewport} type="button" onClick={() => setDesignViewport(viewport)} className={designViewport === viewport ? 'px-2 py-1.5 rounded bg-slate-800 text-slate-100 flex items-center gap-1.5 text-[9px] font-mono' : 'px-2 py-1.5 rounded text-slate-500 hover:text-slate-200 flex items-center gap-1.5 text-[9px] font-mono'}><Icon className="w-3 h-3" />{viewport}</button>;
+                })}
+              </div>
+              <span className="text-[9px] font-mono text-slate-600">RESPONSIVE DESIGN VALIDATION</span>
+            </div>
+
+            {designMode === 'preview' ? (
+              <div className="flex-1 min-h-0 overflow-auto p-4 md:p-6">
+                <div className={`mx-auto h-full min-h-[520px] rounded-2xl border border-slate-700/80 bg-slate-950 shadow-2xl overflow-hidden transition-all ${designViewport === 'desktop' ? 'w-full' : designViewport === 'tablet' ? 'w-[min(768px,100%)]' : 'w-[min(390px,100%)]'}`}>
+                  <div className="h-9 border-b border-slate-800 bg-[#0b1118] flex items-center px-3 gap-2">
+                    <span className="w-2 h-2 rounded-full bg-red-400/70" /><span className="w-2 h-2 rounded-full bg-amber-400/70" /><span className="w-2 h-2 rounded-full bg-emerald-400/70" />
+                    <div className="ml-3 flex-1 h-5 rounded bg-slate-900 border border-slate-800 text-[8px] text-slate-600 font-mono flex items-center px-2">experience-engine.local / {project.title.toLowerCase().replace(/\\s+/g, '-')}</div>
+                  </div>
+                  <div className="p-5 md:p-8 space-y-5 bg-gradient-to-br from-slate-950 via-[#09121a] to-slate-950 h-[calc(100%-36px)]">
+                    <div className="flex items-center justify-between gap-3">
+                      <div><div className="text-[9px] font-mono tracking-[0.2em] text-cyan-400 uppercase">Experience Engine</div><h2 className="text-xl md:text-2xl font-bold text-white mt-1">{project.title}</h2></div>
+                      <button type="button" className="px-3 py-2 rounded-lg bg-cyan-500 text-slate-950 text-[9px] font-mono font-bold flex items-center gap-1.5"><WandSparkles className="w-3 h-3" /> CREATE</button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="md:col-span-2 rounded-xl border border-slate-800 bg-slate-900/70 p-4 min-h-[170px]"><div className="text-[8px] font-mono text-slate-500 uppercase">Primary experience</div><div className="mt-3 h-4 w-2/3 rounded bg-slate-800" /><div className="mt-2 h-3 w-full rounded bg-slate-900" /><div className="mt-2 h-3 w-5/6 rounded bg-slate-900" /><div className="mt-6 flex gap-2"><div className="h-8 w-24 rounded-lg bg-cyan-500/80" /><div className="h-8 w-20 rounded-lg border border-slate-700" /></div></div>
+                      <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4"><div className="text-[8px] font-mono text-cyan-300 uppercase">UX signal</div><div className="text-2xl font-bold text-white mt-3">{designViewport === 'desktop' ? '98' : designViewport === 'tablet' ? '94' : '91'}%</div><div className="text-[9px] font-mono text-slate-500 mt-1">layout consistency</div><div className="mt-5 h-1.5 rounded-full bg-slate-800 overflow-hidden"><div className="h-full w-[94%] bg-cyan-400 rounded-full" /></div></div>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">{['Hierarchy','Navigation','Accessibility','Responsive'].map((item) => <div key={item} className="rounded-lg border border-slate-800 bg-slate-900/50 p-3"><div className="text-[8px] font-mono text-slate-500 uppercase">{item}</div><div className="mt-2 text-[10px] text-emerald-300 font-mono">READY</div></div>)}</div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 min-h-0 overflow-auto p-4 md:p-6 space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[['Layout','12-column responsive grid'],['Typography','Display / body / mono'],['Spacing','4px base rhythm'],['Interaction','Hover / focus / active']].map(([label,value]) => <div key={label} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4"><div className="text-[8px] font-mono text-cyan-400 uppercase">{label}</div><div className="text-[11px] text-slate-200 mt-2">{value}</div></div>)}
+                </div>
+                <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+                  <div className="flex items-center gap-2 text-[10px] font-mono text-slate-300 font-bold uppercase"><LayoutTemplate className="w-3.5 h-3.5 text-cyan-300" /> Component architecture</div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4">{['Navigation','Hero / Workspace','Action Bar','Data Card','Form Controls','Status / Feedback','Modal / Overlay','Empty State'].map((item) => <div key={item} className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-3 text-[9px] font-mono text-slate-400 flex items-center gap-2"><MousePointer2 className="w-3 h-3 text-slate-600" />{item}</div>)}</div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

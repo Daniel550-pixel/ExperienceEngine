@@ -145,6 +145,8 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
     }
   };
 
+  const isMarsRover = project.category === 'mars-rover';
+
   useEffect(() => {
     setDesignSystem(project.designSystem || defaultDesign);
   }, [project.id, project.designSystem]);

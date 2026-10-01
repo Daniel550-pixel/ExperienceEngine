@@ -368,7 +368,6 @@ ${currentProject.codeSnippet}
             onSelectExperiment={handleSelectExperiment}
             onUpdateObservation={handleUpdateObservation}
             onParameterChange={handleParameterChange}
-            onCodeChange={handleCodeChange}
           />
         </section>
 

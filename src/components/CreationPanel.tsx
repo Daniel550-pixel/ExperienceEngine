@@ -32,6 +32,7 @@ interface CreationPanelProps {
 }
 
 type WorkspaceTab = 'code' | 'workspace' | 'specs' | 'telemetry';
+type CodeFile = { id: string; name: string; language: string; content: string; generated: boolean };
 
 export const CreationPanel: React.FC<CreationPanelProps> = ({
   project,
@@ -48,9 +49,17 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('code');
   const [copiedCode, setCopiedCode] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [activeFileId, setActiveFileId] = useState('generated');
 
   const code = project.codeSnippet || '// Waiting for your idea...';
-  const lines = useMemo(() => code.split('\n'), [code]);
+  const extension = project.codeLanguage?.extension || 'ts';
+  const languageName = project.codeLanguage?.name || 'TypeScript';
+  const files = useMemo<CodeFile[]>(() => [
+    { id: 'generated', name: `generated.${extension}`, language: languageName, content: code, generated: true },
+    { id: 'spec', name: 'SPEC.md', language: 'Markdown', content: `# ${project.title}\n\n${project.objective}\n\n## Intention\n${project.intention}\n\n## Summary\n${project.summary}`, generated: true },
+  ], [code, extension, languageName, project.title, project.objective, project.intention, project.summary]);
+  const activeFile = files.find((file) => file.id === activeFileId) || files[0];
+  const lines = useMemo(() => codeDraft.split('\n'), [codeDraft]);
   const [codeDraft, setCodeDraft] = useState(code);
   const [codeDirty, setCodeDirty] = useState(false);
   const codeDraftRef = useRef(code);
@@ -115,7 +124,7 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
           </span>
           <span className="text-slate-700">/</span>
           <span className="text-[10px] font-mono text-slate-400 truncate">
-            {project.codeLanguage?.name || 'TypeScript'} · generated.{project.codeLanguage?.extension || 'ts'}
+            {activeFile.name} · {activeFile.language}
           </span>
         </div>
 
@@ -146,6 +155,28 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
       <div className="flex-1 min-h-0 overflow-hidden">
         {activeTab === 'code' && (
           <div className="h-full flex flex-col min-w-0">
+            <div className="flex items-center border-b border-slate-800/70 bg-[#080d13] shrink-0 overflow-x-auto">
+              {files.map((file) => (
+                <button
+                  key={file.id}
+                  type="button"
+                  onClick={() => {
+                    if (file.id === activeFileId) return;
+                    saveCode();
+                    setActiveFileId(file.id);
+                  }}
+                  className={`px-3 py-2 text-[10px] font-mono border-r border-slate-800 flex items-center gap-2 whitespace-nowrap ${
+                    file.id === activeFileId ? 'bg-[#0a1017] text-slate-100 border-t border-t-emerald-400' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900'
+                  }`}
+                >
+                  <FileText className="w-3 h-3" />
+                  {file.name}
+                  {file.id === 'generated' && <span className="text-[8px] text-emerald-400">AI</span>}
+                </button>
+              ))}
+              <span className="ml-auto px-3 text-[9px] font-mono text-slate-600 whitespace-nowrap">2 FILES</span>
+            </div>
+
             <div className="px-3 md:px-4 py-2.5 border-b border-slate-800/70 bg-[#0a1017] flex items-center justify-between gap-3 shrink-0">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
@@ -186,8 +217,10 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
                   {codeDraft.split('\n').map((_, index) => <div key={index} className="h-6">{index + 1}</div>)}
                 </div>
                 <textarea
-                  value={codeDraft}
+                  readOnly={activeFile.id !== 'generated'}
+                  value={activeFile.id === 'generated' ? codeDraft : activeFile.content}
                   onChange={(event) => {
+                    if (activeFile.id !== 'generated') return;
                     const nextCode = event.target.value;
                     setCodeDraft(nextCode);
                     codeDraftRef.current = nextCode;
@@ -197,7 +230,7 @@ export const CreationPanel: React.FC<CreationPanelProps> = ({
                   spellCheck={false}
                   wrap="off"
                   aria-label="Editable generated code"
-                  className="min-w-[calc(100vw-540px)] min-h-full resize-none outline-none border-0 bg-transparent text-slate-200 px-4 py-0 leading-6 whitespace-pre overflow-visible caret-emerald-400"
+                  className="min-w-[calc(100vw-540px)] min-h-full resize-none outline-none border-0 bg-transparent text-slate-200 px-4 py-0 leading-6 whitespace-pre overflow-visible caret-emerald-400 disabled:text-slate-400"
                 />
               </div>
             </div>
